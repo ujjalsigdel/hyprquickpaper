@@ -20,13 +20,14 @@ fi
 TOOL=$(jq -r '.wallpaper_tool // "swww"' "$CONFIG")
 
 case "$TOOL" in
-    swww)
-        # Requires: exec-once = swww-daemon in your hyprland.conf
-        swww img "$WALLPAPER" --transition-type grow --transition-duration 1 --transition-fps 60
+    awww|swww)
+        # Requires: exec-once = awww-daemon in hyprland.conf
+        awww img "$WALLPAPER" --transition-type grow --transition-duration 1 --transition-fps 60
         ;;
 
     hyprpaper)
-    hyprctl hyprpaper reload ,"$WALLPAPER"
+    hyprctl hyprpaper preload "$WALLPAPER" 2>/dev/null
+    hyprctl hyprpaper wallpaper ",$WALLPAPER"
     ;;
 
     waypaper)

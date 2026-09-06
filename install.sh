@@ -81,22 +81,51 @@ if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
 fi
 
 # --- Default wallpaper backend (matches config.json default) ---
-echo "==> Checking hyprpaper (default wallpaper backend)..."
-if ! command -v hyprpaper &>/dev/null; then
-    echo "--> hyprpaper not found, installing..."
+echo "==> Checking awww (default wallpaper backend)..."
+if ! command -v awww &>/dev/null; then
+    echo "--> awww not found, installing..."
     if command -v pacman &>/dev/null; then
-        sudo pacman -S --needed --noconfirm hyprpaper
+        # awww (formerly swww) is AUR-only on Arch, not in the official repos.
+        if command -v yay &>/dev/null; then
+            yay -S --needed awww
+        elif command -v paru &>/dev/null; then
+            paru -S --needed awww
+        else
+            echo "awww is only on the AUR for Arch — install an AUR helper first, then run:"
+            echo "    yay -S awww      (or: paru -S awww)"
+        fi
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y hyprpaper
+        echo "Note: awww has no official Fedora package yet."
+        echo "  'cargo install awww' only installs the client, not awww-daemon —"
+        echo "  you'll need to build both from source, or pick a different"
+        echo "  wallpaper_tool (hyprpaper/swaybg) in config.json instead."
     elif command -v apt &>/dev/null; then
-        echo "Note: hyprpaper is usually not packaged for Debian/Ubuntu."
-        echo "You can keep the default or later change wallpaper_tool in config.json."
+        echo "Note: awww is usually not packaged for Debian/Ubuntu."
+        echo "  Build from source, or change wallpaper_tool in config.json to"
+        echo "  hyprpaper/swaybg instead."
     else
-        echo "Please install hyprpaper manually (or change wallpaper_tool in config.json)."
+        echo "Please install awww manually (or change wallpaper_tool in config.json)."
     fi
 else
-    echo "--> hyprpaper already present."
+    echo "--> awww already present."
 fi
+# This was for hyprpaper when it was default 
+# echo "==> Checking hyprpaper (default wallpaper backend)..."
+# if ! command -v hyprpaper &>/dev/null; then
+#     echo "--> hyprpaper not found, installing..."
+#     if command -v pacman &>/dev/null; then
+#         sudo pacman -S --needed --noconfirm hyprpaper
+#     elif command -v dnf &>/dev/null; then
+#         sudo dnf install -y hyprpaper
+#     elif command -v apt &>/dev/null; then
+#         echo "Note: hyprpaper is usually not packaged for Debian/Ubuntu."
+#         echo "You can keep the default or later change wallpaper_tool in config.json."
+#     else
+#         echo "Please install hyprpaper manually (or change wallpaper_tool in config.json)."
+#     fi
+# else
+#     echo "--> hyprpaper already present."
+# fi
 
 # --- Initialize Cache Directories & Placeholder Files ---
 echo "==> Initializing local cache directories..."
@@ -111,10 +140,11 @@ echo "==> Setup complete!"
 echo ""
 echo "Before running, make sure you've edited config.json:"
 echo "  - wallpaper_path -> your real wallpaper folder"
-echo "  - wallpaper_tool -> swww | hyprpaper | waypaper | swaybg | feh | ml4w"
-echo " If you are using default hyprpaper"
-echo " Make sure hyprpaper is started by Hyprland (add to hyprland.conf):"
-echo "       exec-once = hyprpaper"
+echo "  - wallpaper_tool -> awww | hyprpaper | waypaper | swaybg | feh | ml4w"
+echo " If you are using default awww"
+echo " Make sure awww-daemon is started by Hyprland (add to hyprland.conf):"
+echo "       exec-once = awww-daemon"
+echo " (ML4W users: this instead goes in ~/.config/hypr/conf/autostart.lua as hl.exec_cmd(\"awww-daemon\"))"
 echo ""
 echo "Then launch with:"
 echo "  qs -p ~/.config/hyprquickpaper"

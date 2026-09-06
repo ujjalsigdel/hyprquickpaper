@@ -6,6 +6,9 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 > [!IMPORTANT]
 > Out of the box this only needs **one** edit for most non-ML4W users: set `wallpaper_tool` in `config.json`. See [Configuration](#-configuration) below — everything else is optional tuning.
+>
+> **If you're switching which backend you use** (e.g. from `hyprpaper` to `awww`, or vice versa), `config.json` is only half the job — you also need to make sure the right daemon autostarts with your compositor. See [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do) below. Skipping this step is the #1 cause of "the picker applies, but nothing changes."
+
 > **Supported compositors only**  
 > This project requires a compositor that implements the `wlr-layer-shell` protocol  
 > (Hyprland, Sway, niri, river, …).  
@@ -19,6 +22,7 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 >
 > For GNOME there is a separate GTK4 implementation:  
 > [hugo-sants/hyprquickpaper-gnome](https://github.com/hugo-sants/hyprquickpaper-gnome)
+
 ### Environment requirements
 
 | Compositor          | Status     | Notes                                      |
@@ -28,6 +32,7 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 | GNOME / Mutter      | ❌ Not supported | Use the GTK4 fork linked above          |
 | KDE Plasma          | ❌ Not supported | No wlr-layer-shell                         |
 | X11                 | ❌ Not supported | Wayland only                               |
+
 ---
 
 ## 🧩 How it works: two separate pieces
@@ -35,9 +40,9 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 This project is really two things working together, and it helps to know the difference before you touch `config.json`:
 
 - **Quickshell** (via `shell.qml` / `shell-*.qml`) is the picker UI itself — the card deck, the animations, keyboard navigation, thumbnail rendering. It's what you actually see and interact with. Quickshell has no idea how to change your desktop background; that's not its job.
-- **The wallpaper backend** (`swww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names.
+- **The wallpaper backend** (`awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names. Most of these backends (`awww`, `hyprpaper`, `swaybg`) run as a **background daemon** that must already be running before `commands.sh` can talk to it — that daemon is started by your compositor config, not by this project. See [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do).
 
-So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed on your system. See [Configuration](#-configuration) for which backend to choose.
+So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed and running on your system. See [Configuration](#-configuration) for which backend to choose.
 
 ---
 
@@ -49,7 +54,7 @@ So Quickshell is always used — no choice there, it's the engine this whole pro
 - **Automatic thumbnail cache** — downscaled previews generated via ImageMagick so scrolling stays smooth with hundreds of wallpapers.
 - **Live config reload** — `config.json` changes apply immediately, no restart needed.
 - **Fully keyboard-driven** — no mouse required, though clicking works too.
-- **Backend-agnostic** — works with swww, hyprpaper, waypaper, swaybg, or feh via a single config field, no bash editing required for common setups.
+- **Backend-agnostic** — works with awww, hyprpaper, waypaper, swaybg, or feh via a single config field, no bash editing required for common setups.
 - **Embedded custom typography** — bundled display font, no manual install needed.
 
 ---
@@ -93,7 +98,7 @@ A plain vertical/list layout — lightest on GPU, good for weaker hardware or mi
 - `jq` — parses `config.json`
 - `imagemagick` (`convert`) — generates the thumbnail cache
 - **Qt5Compat GraphicalEffects** QML module — powers the rounded-corner card masking; not bundled with base Qt
-- A wallpaper backend of your choice: `swww`, `hyprpaper`, `waypaper`, `swaybg`, or `feh`
+- A wallpaper backend of your choice: `awww`, `hyprpaper`, `waypaper`, `swaybg`, or `feh`
 
 If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here.
 
@@ -138,7 +143,7 @@ hl.bind(
 {
   "wallpaper_path": "~/Pictures/Wallpapers/",
   "cache_path": "~/.cache/quickshell/thumbs/",
-  "wallpaper_tool": "hyprpaper",
+  "wallpaper_tool": "awww",
   "number_of_pictures": 7,
   "border_color": "#C27B63",
   "cache_batch_size": 20
@@ -149,19 +154,19 @@ hl.bind(
 |---|---|---|
 | `wallpaper_path` | Folder scanned for `.png`/`.jpg`/`.jpeg` files. | Your real wallpaper directory, **with a trailing `/`**, e.g. `"~/Wallpapers/"`. |
 | `cache_path` | Where generated thumbnails live. Auto-created on first run. | Leave default, or point at tmpfs if you have thousands of wallpapers. |
-| `wallpaper_tool` | **This is the one field almost everyone needs to change.** Selects which backend `commands.sh` uses. | One of `swww`, `hyprpaper`, `waypaper`, `swaybg`, `feh`, `ml4w`. |
+| `wallpaper_tool` | **This is the one field almost everyone needs to change.** Selects which backend `commands.sh` uses. | One of `awww`, `hyprpaper`, `waypaper`, `swaybg`, `feh`, `ml4w`. |
 | `number_of_pictures` | Jump distance for the `u`/`d` fast-scroll keys (not a display count). | Larger folder → bigger number (10–15+). |
 | `border_color` | Hex color of the selected card's border. | Any hex, e.g. `"#89b4fa"`. |
 | `cache_batch_size` | Max parallel `convert` jobs while building thumbnails. `0` = unlimited. | Set to roughly your CPU thread count (`4`–`16`) — don't leave at `0` with a large wallpaper folder. |
 
-Changes apply live — no restart needed.
+Changes to `config.json` apply live — no restart needed. **This does not apply to the daemon autostart change below** — that one needs a session restart, since it's a compositor-level setting outside this project's control.
 
 **Which `wallpaper_tool` should I actually pick?**
 
-- **`hyprpaper` (default) — recommended for almost everyone.** It ships as part of the Hyprland project itself, so if you have Hyprland running at all, you already have access to it through the exact same channel (official repo, COPR, AUR, etc.) you used to install Hyprland. No separate third-party project to track.
+- **`awww` (default) — recommended for almost everyone.** Nicest-looking transitions (formerly `swww`, renamed/re-based upstream in late 2025 — the old `swww`/`swww-daemon` binaries are effectively unmaintained now, so use `awww`/`awww-daemon`, not `swww`). It's had some packaging turbulence around the rename, and has no official package on Fedora — `cargo install awww` there only installs the client half, not the daemon. Works great once correctly installed, just budget a bit of troubleshooting time on Fedora so Build from source, or change wallpaper_tool in config.json to hyprpaper/swaybg instead. 
+- **`hyprpaper`** — ships as part of the Hyprland project itself, so if you have Hyprland at all you already have access to it through the same channel (official repo, COPR, AUR, etc.). No transitions, but no separate third-party project to track either.
 - **`swaybg`** — simplest possible option, no animated transitions, but extremely stable and rarely breaks across distro updates. Good if you just want it to work.
-- **`swww`** — nicest-looking transitions, but it's had real packaging turbulence recently: the upstream project was renamed/archived in late 2025 (now `awww`), which broke `swww`/`swww-daemon` on some distros' package resolution, and it has no official package on Fedora at all — `cargo install swww` there only installs the client half, not the daemon, and building from source can fail on very new Fedora releases due to unrelated build-tooling version gaps. It still works great once correctly installed, just budget some troubleshooting time, especially on Fedora.
-- **`ml4w`** — only if you already have the full ML4W dotfiles installed; it's a thin wrapper around `hyprpaper` with ML4W-specific extras (effects, SDDM sync) layered on. If you don't already have ML4W, use `hyprpaper` directly instead.
+- **`ml4w`** — only if you already have the full ML4W dotfiles installed; it's a thin wrapper around `hyprpaper` with ML4W-specific extras (effects, SDDM sync) layered on. If you don't already have ML4W, use `awww` or `hyprpaper` directly instead.
 
 ### `commands.sh`
 
@@ -169,7 +174,7 @@ You shouldn't need to edit this at all for the six supported backends — just s
 
 Only edit `commands.sh` directly if you need a backend that isn't in the preset list (e.g. `mpvpaper`, a custom script) — add a new `case` branch following the existing pattern.
 
-> **Don't just copy `ml4w-wallpaper` from an ML4W install and point `commands.sh` at it.** That script also drives a hyprpaper template, ImageMagick wallpaper "effects", ML4W's own wallpaper-generated cache, and SDDM background sync — all tied to a full ML4W install. Outside of ML4W it will error out or silently no-op. Use the `swww`/`hyprpaper`/etc. presets above instead — they do the one job (set the wallpaper) with no hidden dependencies.
+> **If you are using ML4W like me, Don't just copy `ml4w-wallpaper` from an ML4W install and point `commands.sh` at it.** That script also drives a hyprpaper template, ImageMagick wallpaper "effects", ML4W's own wallpaper-generated cache, and SDDM background sync — all tied to a full ML4W install. Outside of ML4W it will error out or silently no-op. Use the `awww`/`hyprpaper`/etc. presets above instead — they do the one job (set the wallpaper) with no hidden dependencies.
 
 ### `shell.qml` — which layout renders
 
@@ -177,6 +182,27 @@ Only edit `commands.sh` directly if you need a backend that isn't in the preset 
 property string activeLayout: "shell-bottom-dock.qml"
 ```
 Only one line should be uncommented. Options: `shell-bottom-dock.qml`, `shell-coverflow.qml`, `shell-coverflow-widgets.qml`, `shell-classic.qml`, `shell-widgets-noblur.qml`.
+
+---
+
+## 🔁 Switching wallpaper backends (the part `config.json` can't do)
+
+Setting `wallpaper_tool` only tells `commands.sh` which command to run — it doesn't start the backend's daemon (`awww`, `hyprpaper`, `swaybg` all need one running in the background, autostarted by your compositor config, not by this project). If you switch backends, make sure only the new daemon autostarts, or the old one may still be running and fighting it for the output.
+
+Where that autostart line lives depends on your setup:
+
+- **Plain Hyprland** — in `~/.config/hypr/hyprland.conf` (or a `source =`-included file):
+  ```ini
+  exec-once = awww-daemon
+  ```
+- **ML4W (Lua-based config)** — inside `~/.config/hypr/conf/autostart.lua`:
+  ```lua
+  -- awww daemon
+  hl.exec_cmd("awww-daemon")
+  ```
+  Swap the line/comment to whichever daemon you're switching to. (Don't confuse this with `~/.config/ml4w/settings/wallpaper-app` — that only controls which picker UI ML4W's own keybind opens, `quickshell` or `waypaper`, and has nothing to do with the wallpaper daemon.)
+
+This change only takes effect on your next login/session — `hyprctl reload` won't re-run it. After restarting, confirm the right daemon is running with `pgrep -a <daemon-name>` before testing the picker.
 
 ---
 
@@ -194,16 +220,17 @@ Only one line should be uncommented. Options: `shell-bottom-dock.qml`, `shell-co
 
 ---
 
-## 🛠️ Troubleshooting
+## 🛠️ Troubleshooting              
 
 | Symptom | Fix |
 |---|---|
 | Blank/transparent window on launch | Missing Qt5Compat GraphicalEffects module — see Dependencies above. |
 | Stuck on "Caching…", thumbnails never load | Confirm `cache_path` is writable and `convert` (ImageMagick) is on `PATH`: `which convert`. |
-| Wallpaper picked but nothing changes | `wallpaper_tool` in `config.json` doesn't match what's actually installed/running (e.g. set to `hyprpaper` but you're running `swww`). |
+| Deck opens fine, but pressing Enter/Space does nothing | Two possible causes, check in order: **(1)** `wallpaper_tool` in `config.json` doesn't match what's actually installed (e.g. set to `hyprpaper` but you have `awww` installed) — fix in `config.json`. **(2)** `wallpaper_tool` is correct, but that backend's daemon isn't actually running — see [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do) and check with `pgrep -a <daemon-name>`. |
 | Picker doesn't highlight my actual current wallpaper | Confirm your `shell-*.qml` file's tracker path matches `~/.cache/hyprquickpaper/current_wallpaper` (this repo's default) rather than an old ML4W path. |
 | Thumbnail generation freezes/slows the system on first launch | Lower `cache_batch_size` to your CPU thread count instead of `0`. |
 | `.webp`/`.gif` wallpapers don't show up | The folder filter only matches `.png`/`.jpg`/`.jpeg` — see Customization below. |
+| Wallpaper doesn't survive a reboot | Expected — this project doesn't manage boot-time restore. See "Persistence across reboots" above. |
 
 ---
 
