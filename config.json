@@ -1,6 +1,7 @@
 {
     "wallpaper_path": "~/Pictures/Wallpapers/",
     "cache_path": "~/.cache/quickshell/thumbs/",
+    "wallpaper_tool": "swww",
     "number_of_pictures": 7,
     "border_color": "#C27B63",
     "cache_batch_size": 20
