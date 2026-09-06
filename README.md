@@ -9,6 +9,17 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 ---
 
+## 🧩 How it works: two separate pieces
+
+This project is really two things working together, and it helps to know the difference before you touch `config.json`:
+
+- **Quickshell** (via `shell.qml` / `shell-*.qml`) is the picker UI itself — the card deck, the animations, keyboard navigation, thumbnail rendering. It's what you actually see and interact with. Quickshell has no idea how to change your desktop background; that's not its job.
+- **The wallpaper backend** (`swww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names.
+
+So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed on your system. See [Configuration](#-configuration) for which backend to choose.
+
+---
+
 ## ✨ Features
 
 - **Multiple layout modes** — Bottom Dock, Coverflow, Coverflow+Widgets, Classic list, and a no-blur widgets variant. Switch by editing one line in `shell.qml`.
@@ -105,7 +116,7 @@ hl.bind(
 {
   "wallpaper_path": "~/Pictures/Wallpapers/",
   "cache_path": "~/.cache/quickshell/thumbs/",
-  "wallpaper_tool": "swww",
+  "wallpaper_tool": "hyprpaper",
   "number_of_pictures": 7,
   "border_color": "#C27B63",
   "cache_batch_size": 20
@@ -122,6 +133,13 @@ hl.bind(
 | `cache_batch_size` | Max parallel `convert` jobs while building thumbnails. `0` = unlimited. | Set to roughly your CPU thread count (`4`–`16`) — don't leave at `0` with a large wallpaper folder. |
 
 Changes apply live — no restart needed.
+
+**Which `wallpaper_tool` should I actually pick?**
+
+- **`hyprpaper` (default) — recommended for almost everyone.** It ships as part of the Hyprland project itself, so if you have Hyprland running at all, you already have access to it through the exact same channel (official repo, COPR, AUR, etc.) you used to install Hyprland. No separate third-party project to track.
+- **`swaybg`** — simplest possible option, no animated transitions, but extremely stable and rarely breaks across distro updates. Good if you just want it to work.
+- **`swww`** — nicest-looking transitions, but it's had real packaging turbulence recently: the upstream project was renamed/archived in late 2025 (now `awww`), which broke `swww`/`swww-daemon` on some distros' package resolution, and it has no official package on Fedora at all — `cargo install swww` there only installs the client half, not the daemon, and building from source can fail on very new Fedora releases due to unrelated build-tooling version gaps. It still works great once correctly installed, just budget some troubleshooting time, especially on Fedora.
+- **`ml4w`** — only if you already have the full ML4W dotfiles installed; it's a thin wrapper around `hyprpaper` with ML4W-specific extras (effects, SDDM sync) layered on. If you don't already have ML4W, use `hyprpaper` directly instead.
 
 ### `commands.sh`
 
