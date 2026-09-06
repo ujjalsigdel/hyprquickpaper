@@ -269,11 +269,11 @@ PanelWindow {
             const step = 1;
             const big = configs.number_of_pictures;
 
-            if (event.key === Qt.Key_L) {
+            if (event.key === Qt.Key_L || event.key === Qt.Key_Right) {
                 anim.v = main.speed;
                 selectedIndex = clampIndex(selectedIndex + step);
                 ensureVisibleAnimated(selectedIndex);
-            } else if (event.key === Qt.Key_H) {
+            } else if (event.key === Qt.Key_H || event.key === Qt.Key_Left) {
                 anim.v = main.speed;
                 selectedIndex = clampIndex(selectedIndex - step);
                 ensureVisibleAnimated(selectedIndex);
