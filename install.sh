@@ -29,7 +29,16 @@ install_pkg() {
 
 # --- Core CLI tools ---
 install_pkg "jq" "jq"
-install_pkg "convert" "ImageMagick"
+# ImageMagick: package name differs across distros
+if command -v pacman &>/dev/null; then
+    install_pkg "convert" "imagemagick"          # Arch
+elif command -v dnf &>/dev/null; then
+    install_pkg "convert" "ImageMagick"          # Fedora
+elif command -v apt &>/dev/null; then
+    install_pkg "convert" "imagemagick"          # Debian/Ubuntu
+else
+    install_pkg "convert" "ImageMagick"          # fallback guess
+fi
 
 # --- Qt5Compat.GraphicalEffects (required by shell-*.qml for rounded card masks) ---
 echo "==> Checking Qt5Compat GraphicalEffects module..."

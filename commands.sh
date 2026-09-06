@@ -26,11 +26,8 @@ case "$TOOL" in
         ;;
 
     hyprpaper)
-        # unload all first so old wallpapers don't pile up in memory
-        hyprctl hyprpaper unload all
-        hyprctl hyprpaper preload "$WALLPAPER"
-        hyprctl hyprpaper wallpaper ",$WALLPAPER"
-        ;;
+    hyprctl hyprpaper reload ,"$WALLPAPER"
+    ;;
 
     waypaper)
         waypaper --wallpaper "$WALLPAPER"
