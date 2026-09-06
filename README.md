@@ -37,12 +37,10 @@ Cards fan out in 3D-style perspective around the focused item, classic "coverflo
 ### Coverflow + Widgets
 Same coverflow browsing, with extra on-screen widgets (clock/info) layered in.
 
-
 ![Coverflow + Widgets](assets/screenshots/coverflow-widgets.jpg)
 
 ### Widgets (No Blur)
 Same widget layout as Coverflow+Widgets, with background blur disabled — use this if your compositor/GPU can't keep blur smooth.
-
 
 ![Widgets No Blur](assets/screenshots/widgets-noblur.jpg)
 
@@ -51,101 +49,50 @@ A plain vertical/list layout — lightest on GPU, good for weaker hardware or mi
 
 ![Classic List](assets/screenshots/classic.jpg)
 
-
 > Screenshots referenced above go under `assets/screenshots/` in this repo — add your own there.
 
 ---
 
-## 📋 Dependencies — and how to actually install each one
+## 📋 Dependencies
 
-| Dependency | What it's for |
-|---|---|
-| [Quickshell](https://quickshell.org) (`qs` / `quickshell`) | Renders the whole UI. |
-| `jq` | Parses `config.json` in `cache.sh` / `commands.sh`. |
-| `imagemagick` (`convert`) | Generates the thumbnail cache. |
-| **Qt5Compat GraphicalEffects QML module** | Powers the rounded-corner card masking (`Qt5Compat.GraphicalEffects` import). Easy to miss — not bundled with base Qt. |
-| A wallpaper backend: `swww`, `hyprpaper`, `waypaper`, `swaybg`, or `feh` | Whichever `commands.sh` actually calls (set via `wallpaper_tool` in `config.json`). |
+`install.sh` detects your package manager (pacman / dnf / apt) and installs all of these automatically, including the one that's easy to miss:
 
-`install.sh` handles all of the above automatically where possible. If it can't (e.g. no supported package manager, or Quickshell not packaged for your distro), here's exactly what to run yourself:
+- [Quickshell](https://quickshell.org) (`qs` / `quickshell`) — renders the whole UI
+- `jq` — parses `config.json`
+- `imagemagick` (`convert`) — generates the thumbnail cache
+- **Qt5Compat GraphicalEffects** QML module — powers the rounded-corner card masking; not bundled with base Qt
+- A wallpaper backend of your choice: `swww`, `hyprpaper`, `waypaper`, `swaybg`, or `feh`
 
-<details>
-<summary><b>Arch / Arch-based</b></summary>
+If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here.
 
-```bash
-# Core tools
-sudo pacman -S --needed jq imagemagick
-
-# Qt5Compat GraphicalEffects
-sudo pacman -S --needed qt6-5compat
-
-# Quickshell — AUR only, not in the official repos
-yay -S quickshell-git      # or: paru -S quickshell-git
-
-# A wallpaper backend, e.g.:
-sudo pacman -S --needed swww
-```
-</details>
-
-<details>
-<summary><b>Fedora</b></summary>
-
-```bash
-# Core tools
-sudo dnf install -y jq ImageMagick
-
-# Qt5Compat GraphicalEffects
-sudo dnf install -y qt6-qt5compat
-
-# Quickshell — via community COPR
-sudo dnf copr enable errornointernet/quickshell
-sudo dnf install -y quickshell
-
-# A wallpaper backend, e.g. swww (may need to be built from source/COPR on Fedora)
-```
-</details>
-
-<details>
-<summary><b>Debian / Ubuntu</b></summary>
-
-```bash
-# Core tools
-sudo apt update && sudo apt install -y jq imagemagick
-
-# Qt5Compat GraphicalEffects
-sudo apt install -y qml6-module-qt5compat-graphicaleffects
-
-# Quickshell — no official .deb yet. Two working options:
-#   1) Nix:  nix profile install nixpkgs#quickshell
-#   2) Build from source: https://git.outfoxxed.me/quickshell/quickshell (see BUILD.md)
-```
-</details>
-
-<details>
-<summary><b>NixOS / Nix (any distro)</b></summary>
-
-Quickshell ships an embedded flake — see the [Quickshell Nix install docs](https://quickshell.org/docs/guide/install-setup) for the flake snippet. `jq`, `imagemagick`, and `qt6.qt5compat` are all in nixpkgs normally.
-</details>
-
-**How to tell if Qt5Compat is actually the problem:** if the picker window opens but stays blank/transparent, or you see QML import errors mentioning `Qt5Compat` in your terminal when launching with `qs -c hyprquickpaper`, that's the missing module — install it per your distro above and relaunch.
+**How to tell if Qt5Compat is the problem:** if the picker window opens but stays blank/transparent, or you see QML import errors mentioning `Qt5Compat` in your terminal when launching, that module is missing — re-run `install.sh` or install it manually per your distro's package name above.
 
 ---
 
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/<you>/hyprquickpaper.git ~/.config/quickshell/hyprquickpaper
-cd ~/.config/quickshell/hyprquickpaper
+git clone https://github.com/ujjalsigdel/hyprquickpaper.git ~/.config/hyprquickpaper
+cd ~/.config/hyprquickpaper
 ./install.sh
 ```
 
 Then launch with:
 ```bash
-qs -c hyprquickpaper
+qs -p ~/.config/hyprquickpaper
 ```
 
-Bind it to a Hyprland key so you don't retype that — add to `hyprland.conf`:
+Bind it to a Hyprland key so you don't retype that — add to `hyprland.conf` or `Keybindings.lua`:
 ```ini
-bind = SUPER, W, exec, qs -c hyprquickpaper
+bind = SUPER, W, exec, qs -p ~/.config/hyprquickpaper
+```
+or
+```lua
+hl.bind(
+	mainMod .. " + CTRL + W",
+	hl.dsp.exec_cmd("qs -p ~/.config/hyprquickpaper"),
+	{ description = "Open HyprQuickPaper Wallpaper Picker" }
+)
 ```
 
 ---
@@ -191,14 +138,6 @@ property string activeLayout: "shell-bottom-dock.qml"
 ```
 Only one line should be uncommented. Options: `shell-bottom-dock.qml`, `shell-coverflow.qml`, `shell-coverflow-widgets.qml`, `shell-classic.qml`, `shell-widgets-noblur.qml`.
 
-### `shell-*.qml` — repoint the "current wallpaper" tracker (one command, fixes all layouts)
-
-```bash
-cd ~/.config/quickshell/hyprquickpaper
-sed -i 's#/.cache/ml4w/hyprland-dotfiles/current_wallpaper#/.cache/hyprquickpaper/current_wallpaper#' shell-*.qml
-```
-This matches the path `commands.sh` now writes to, so whichever layout is active correctly pre-highlights your current wallpaper on open — no ML4W required.
-
 ---
 
 ## ⌨️ Keybindings
@@ -219,10 +158,10 @@ This matches the path `commands.sh` now writes to, so whichever layout is active
 
 | Symptom | Fix |
 |---|---|
-| Blank/transparent window on launch | Missing Qt5Compat GraphicalEffects module — see the per-distro install commands above. |
+| Blank/transparent window on launch | Missing Qt5Compat GraphicalEffects module — see Dependencies above. |
 | Stuck on "Caching…", thumbnails never load | Confirm `cache_path` is writable and `convert` (ImageMagick) is on `PATH`: `which convert`. |
 | Wallpaper picked but nothing changes | `wallpaper_tool` in `config.json` doesn't match what's actually installed/running (e.g. set to `hyprpaper` but you're running `swww`). |
-| Picker doesn't highlight my actual current wallpaper | Run the `sed` fix above — it wasn't applied yet, or you're still on the ML4W-specific path. |
+| Picker doesn't highlight my actual current wallpaper | Confirm your `shell-*.qml` file's tracker path matches `~/.cache/hyprquickpaper/current_wallpaper` (this repo's default) rather than an old ML4W path. |
 | Thumbnail generation freezes/slows the system on first launch | Lower `cache_batch_size` to your CPU thread count instead of `0`. |
 | `.webp`/`.gif` wallpapers don't show up | The folder filter only matches `.png`/`.jpg`/`.jpeg` — see Customization below. |
 
@@ -240,7 +179,3 @@ This matches the path `commands.sh` now writes to, so whichever layout is active
 ## 🤝 Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). PRs for new backends, layouts, or distro packaging (AUR, Nix, COPR) are welcome.
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE). *(Add a LICENSE file if one isn't present yet.)*
