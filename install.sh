@@ -71,6 +71,24 @@ if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
     fi
 fi
 
+# --- Default wallpaper backend (matches config.json default) ---
+echo "==> Checking hyprpaper (default wallpaper backend)..."
+if ! command -v hyprpaper &>/dev/null; then
+    echo "--> hyprpaper not found, installing..."
+    if command -v pacman &>/dev/null; then
+        sudo pacman -S --needed --noconfirm hyprpaper
+    elif command -v dnf &>/dev/null; then
+        sudo dnf install -y hyprpaper
+    elif command -v apt &>/dev/null; then
+        echo "Note: hyprpaper is usually not packaged for Debian/Ubuntu."
+        echo "You can keep the default or later change wallpaper_tool in config.json."
+    else
+        echo "Please install hyprpaper manually (or change wallpaper_tool in config.json)."
+    fi
+else
+    echo "--> hyprpaper already present."
+fi
+
 # --- Initialize Cache Directories & Placeholder Files ---
 echo "==> Initializing local cache directories..."
 mkdir -p ~/.cache/hyprquickpaper
@@ -85,6 +103,9 @@ echo ""
 echo "Before running, make sure you've edited config.json:"
 echo "  - wallpaper_path -> your real wallpaper folder"
 echo "  - wallpaper_tool -> swww | hyprpaper | waypaper | swaybg | feh | ml4w"
+echo " If you are using default hyprpaper"
+echo " Make sure hyprpaper is started by Hyprland (add to hyprland.conf):"
+echo "       exec-once = hyprpaper"
 echo ""
 echo "Then launch with:"
 echo "  qs -p ~/.config/hyprquickpaper"
