@@ -104,8 +104,10 @@ PanelWindow {
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
         nameFilters: searchQuery.length > 0
-                     ? ["*" + searchQuery + "*.png", "*" + searchQuery + "*.jpg"]
-                     : ["*.png", "*.jpg"]
+        ? ["*" + searchQuery + "*.png",
+        "*" + searchQuery + "*.jpg",
+        "*" + searchQuery + "*.jpeg"]
+        : ["*.png", "*.jpg", "*.jpeg"]
         sortField: FolderListModel.Name
     }
 

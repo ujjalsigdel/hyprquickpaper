@@ -57,7 +57,7 @@ PanelWindow {
         id: folderModel
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
-        nameFilters: ["*.png", "*.jpg"]
+        nameFilters: ["*.png", "*.jpg", "*.jpeg"]
         sortField: FolderListModel.Name
     }
 

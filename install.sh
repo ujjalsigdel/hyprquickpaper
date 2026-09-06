@@ -71,6 +71,12 @@ if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
     fi
 fi
 
+# --- Initialize Cache Directories & Placeholder Files ---
+echo "==> Initializing local cache directories..."
+mkdir -p ~/.cache/hyprquickpaper
+mkdir -p ~/.cache/quickshell/thumbs
+touch ~/.cache/hyprquickpaper/current_wallpaper
+
 echo "==> Setting script execution permissions..."
 chmod +x cache.sh commands.sh install.sh
 
