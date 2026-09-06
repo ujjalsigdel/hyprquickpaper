@@ -95,7 +95,7 @@ PanelWindow {
 
     FileView {
         id: activeWallpaperFile
-        path: Quickshell.env("HOME") + "/.cache/ml4w/hyprland-dotfiles/current_wallpaper"
+        path: Quickshell.env("HOME") + "/.cache/hyprquickpaper/current_wallpaper"
         watchChanges: false
     }
 
