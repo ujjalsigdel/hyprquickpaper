@@ -85,6 +85,7 @@ If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for y
 ```bash
 git clone https://github.com/ujjalsigdel/hyprquickpaper.git ~/.config/hyprquickpaper
 cd ~/.config/hyprquickpaper
+chmod +x install.sh
 ./install.sh
 ```
 

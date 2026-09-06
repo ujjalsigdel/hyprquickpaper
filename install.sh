@@ -4,24 +4,32 @@ set -e
 echo "==> Checking and installing dependencies..."
 
 install_pkg() {
-    local pkg=$1
-    if ! command -v "$pkg" &>/dev/null; then
+    local cmd=$1
+    local pkg=$2
+
+    if ! command -v "$cmd" &>/dev/null; then
         echo "--> Installing missing dependency: $pkg"
+
         if command -v pacman &>/dev/null; then
             sudo pacman -S --needed --noconfirm "$pkg"
+
         elif command -v dnf &>/dev/null; then
             sudo dnf install -y "$pkg"
+
         elif command -v apt &>/dev/null; then
             sudo apt update && sudo apt install -y "$pkg"
+
         else
-            echo "Could not detect package manager. Please install $pkg manually."
+            echo "Could not detect package manager."
+            echo "Please install $pkg manually."
+            return 1
         fi
     fi
 }
 
 # --- Core CLI tools ---
-install_pkg "jq"
-install_pkg "imagemagick"
+install_pkg "jq" "jq"
+install_pkg "convert" "ImageMagick"
 
 # --- Qt5Compat.GraphicalEffects (required by shell-*.qml for rounded card masks) ---
 echo "==> Checking Qt5Compat GraphicalEffects module..."
