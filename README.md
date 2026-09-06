@@ -6,7 +6,28 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 > [!IMPORTANT]
 > Out of the box this only needs **one** edit for most non-ML4W users: set `wallpaper_tool` in `config.json`. See [Configuration](#-configuration) below — everything else is optional tuning.
+> **Supported compositors only**  
+> This project requires a compositor that implements the `wlr-layer-shell` protocol  
+> (Hyprland, Sway, niri, river, …).  
+>
+> It does **not** work on GNOME / Mutter, KDE Plasma, or any compositor that lacks  
+> `zwlr-layer-shell-v1`. Running it there produces:
+> ```
+> WARN: Failed to initialize layershell integration
+> ```
+> and the UI never appears.  
+>
+> For GNOME there is a separate GTK4 implementation:  
+> [hugo-sants/hyprquickpaper-gnome](https://github.com/hugo-sants/hyprquickpaper-gnome)
+### Environment requirements
 
+| Compositor          | Status     | Notes                                      |
+|---------------------|------------|--------------------------------------------|
+| Hyprland            | ✅ Supported | Primary target                             |
+| Sway / niri / river | ✅ Supported | Any wlr-layer-shell compositor             |
+| GNOME / Mutter      | ❌ Not supported | Use the GTK4 fork linked above          |
+| KDE Plasma          | ❌ Not supported | No wlr-layer-shell                         |
+| X11                 | ❌ Not supported | Wayland only                               |
 ---
 
 ## 🧩 How it works: two separate pieces
