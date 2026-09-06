@@ -9,9 +9,9 @@ Scope {
     // "shell-coverflow.qml" or "shell-classic.qml"
     // property string activeLayout: "shell-classic.qml"
     // property string activeLayout: "shell-coverflow.qml"
-    property string activeLayout: "shell-coverflow-widgets.qml"
+    // property string activeLayout: "shell-coverflow-widgets.qml"
     // property string activeLayout: "shell-widgets-noblur.qml"
-    // property string activeLayout: "shell-bottom-dock.qml"
+    property string activeLayout: "shell-bottom-dock.qml"
 
     Loader {
         active: true

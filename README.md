@@ -38,16 +38,20 @@ Cards fan out in 3D-style perspective around the focused item, classic "coverflo
 Same coverflow browsing, with extra on-screen widgets (clock/info) layered in.
 
 
-### Classic List
-A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
-
-![Classic List](assets/screenshots/classic.jpg)
+![Coverflow + Widgets](assets/screenshots/coverflow-widgets.jpg)
 
 ### Widgets (No Blur)
 Same widget layout as Coverflow+Widgets, with background blur disabled — use this if your compositor/GPU can't keep blur smooth.
 
 
 ![Widgets No Blur](assets/screenshots/widgets-noblur.jpg)
+
+### Classic List
+A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
+
+![Classic List](assets/screenshots/classic.jpg)
+
+
 > Screenshots referenced above go under `assets/screenshots/` in this repo — add your own there.
 
 ---
