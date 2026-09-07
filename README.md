@@ -82,6 +82,21 @@ Same widget layout as Coverflow+Widgets, with background blur disabled — use t
 ![Widgets No Blur](assets/screenshots/widgets-noblur.jpg)
 
 
+### Floating
+Features a tiered, 3D floating cloud effect with an ultra-smooth background blur and a glassmorphic Date & Time overlay in the top center.
+
+![Floating](assets/screenshots/floating.jpg)
+
+### Floating Clear
+Replaces the heavily blurred background with the original high-resolution wallpaper in crisp detail, keeping the sleek Date & Time overlay on top.
+
+![Floating Clear](assets/screenshots/floating-clear.jpg)
+
+### Floating Minimal
+Offers a completely unobstructed view of your high-resolution wallpaper by removing the Date & Time overlay entirely, keeping focus purely on the 3D card deck.
+
+![Floating Minimal](assets/screenshots/floating-minimal.jpg)
+
 ### Hexagon
 A honeycomb grid of hexagonal tiles, navigable in both directions (columns and rows) instead of a single strip. Idea for this layout taken from [Horizon0427/Arch-Config](https://github.com/Horizon0427/Arch-Config) — the hex-grid wallpaper picker there was the inspiration, rebuilt here from scratch for Quickshell/QML.
 
