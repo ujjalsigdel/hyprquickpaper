@@ -13,7 +13,7 @@ Scope {
     // property string activeLayout: "shell-coverflow-clear.qml"
     // property string activeLayout: "shell-coverflow-minimal.qml"
     property string activeLayout: "shell-bottom-dock.qml"
-    // property string activeLayout: "shell-hexagon.qml"
+    // property string activeLayout: "shell-hexcomb.qml"
     // property string activeLayout: "shell-floating.qml"
     // property string activeLayout: "shell-floating-clear.qml"
     // property string activeLayout: "shell-floating-minimal.qml"
