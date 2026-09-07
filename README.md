@@ -146,7 +146,8 @@ hl.bind(
   "wallpaper_tool": "awww",
   "number_of_pictures": 7,
   "border_color": "#C27B63",
-  "cache_batch_size": 20
+  "cache_batch_size": 20,
+  "stable_copy_path": ""
 }
 ```
 
@@ -158,6 +159,7 @@ hl.bind(
 | `number_of_pictures` | Jump distance for the `u`/`d` fast-scroll keys (not a display count). | Larger folder → bigger number (10–15+). |
 | `border_color` | Hex color of the selected card's border. | Any hex, e.g. `"#89b4fa"`. |
 | `cache_batch_size` | Max parallel `convert` jobs while building thumbnails. `0` = unlimited. | Set to roughly your CPU thread count (`4`–`16`) — don't leave at `0` with a large wallpaper folder. |
+| `stable_copy_path` | Optional. If set, `commands.sh` also copies every applied wallpaper to this fixed path — handy if some other tool (lock screen, status bar script) wants to always read the current wallpaper from one unchanging filename. | Leave `""` to skip. Otherwise a full path, e.g. `"~/Pictures/wallpaper.png"`. |
 
 Changes to `config.json` apply live — no restart needed. **This does not apply to the daemon autostart change below** — that one needs a session restart, since it's a compositor-level setting outside this project's control.
 
@@ -238,6 +240,7 @@ This change only takes effect on your next login/session — `hyprctl reload` wo
 
 - Add more wallpaper formats: update the `find` filter in `cache.sh` and the `nameFilters` in whichever `shell-*.qml` you use to include `.webp`/`.gif`.
 - Add a new wallpaper backend: add a `case` branch to `commands.sh`.
+- Full-desktop re-theming on every pick (pywal/wallust-style): `commands.sh` has a commented-out "run your own commands after every wallpaper change" section at the bottom — uncomment and adapt it to regenerate a colorscheme and reload whatever apps you theme (waybar, notifications, browser, etc.). It runs after the wallpaper is set regardless of which `wallpaper_tool` you use.
 - Add more layouts: copy an existing `shell-*.qml`, tweak it, and add the filename as an option in `shell.qml`.
 - Swap the bundled font for your own by replacing the embedded font resource.
 
