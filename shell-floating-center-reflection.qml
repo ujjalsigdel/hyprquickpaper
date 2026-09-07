@@ -359,7 +359,7 @@ PanelWindow {
                 }
 
                 // -----------------------------------------------------
-                // REFLECTION WITH PROPER GRADIENT PLACEMENT
+                // REFLECTION - ONLY FOR CENTER CARD (absDiff === 0)
                 // -----------------------------------------------------
                 Item {
                     id: reflectionContainer
@@ -367,14 +367,12 @@ PanelWindow {
                     anchors.left: cardFrame.left
                     anchors.right: cardFrame.right
                     height: cardFrame.height * 0.6
-                    visible: absDiff <= 2
                     
-                    // Overall container opacity
-                    opacity: {
-                        if (absDiff === 0) return 0.65
-                        if (absDiff === 1) return 0.35
-                        return 0.20
-                    }
+                    // ONLY show reflection on the center card
+                    visible: absDiff === 0
+                    
+                    // Overall container opacity - full opacity for center card
+                    opacity: 0.65
 
                     // Step 1: The reflected image (without any gradient)
                     Item {

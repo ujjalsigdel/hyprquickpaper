@@ -102,7 +102,6 @@ PanelWindow {
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(main.selectedIndex, "fileName")
-        // Points to original wallpaper path for high quality
         const wallpaperDir = configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         const fullPath = "file://" + (wallpaperDir.endsWith("/") ? wallpaperDir : wallpaperDir + "/") + fileName
         currentImagePath = fullPath
@@ -148,7 +147,6 @@ PanelWindow {
             Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
         }
 
-        // Slight dark vignette to keep 3D cards readable against bright wallpapers
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -159,7 +157,7 @@ PanelWindow {
     }
 
     // -----------------------------------------------------
-    // 2. TIERED 3D FLOATING CLOUD (REPEATER)
+    // 2. TIERED 3D FLOATING CLOUD (REPEATER) - CENTER ONLY REFLECTIONS
     // -----------------------------------------------------
     Item {
         id: stage
@@ -325,31 +323,89 @@ PanelWindow {
                     }
                 }
 
+                // -----------------------------------------------------
+                // REFLECTION - ONLY ON CENTER CARD (absDiff === 0)
+                // WITH PROPER CURVED CORNERS
+                // -----------------------------------------------------
                 Item {
                     id: reflectionContainer
                     anchors.top: cardFrame.bottom
                     anchors.left: cardFrame.left
                     anchors.right: cardFrame.right
                     height: cardFrame.height * 0.6
-                    clip: true
-                    visible: absDiff <= 2
-                    opacity: absDiff === 0 ? 0.4 : 0.15
+                    visible: absDiff === 0  // ONLY center card
+                    opacity: 0.4
 
-                    Image {
-                        width: parent.width
-                        height: cardFrame.height
-                        anchors.top: parent.top
-                        source: (imgLoader.item && imgLoader.item.children[1]) ? imgLoader.item.children[1].source : ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        transform: Scale { origin.x: width/2; origin.y: height/2; yScale: -1 }
+                    // Step 1: The reflected image
+                    Item {
+                        id: reflectionContent
+                        anchors.fill: parent
+                        visible: false
+
+                        Image {
+                            id: reflectionImg
+                            width: parent.width
+                            height: cardFrame.height
+                            anchors.top: parent.top
+                            source: {
+                                if (!cardDelegate.safeFileName) return "";
+                                let basePath = configs.cache_path.replace("~", Quickshell.env("HOME"));
+                                if (!basePath.endsWith("/")) basePath += "/";
+                                return "file://" + basePath + cardDelegate.safeFileName;
+                            }
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: true
+                            transform: Scale { origin.x: width/2; origin.y: height/2; yScale: -1 }
+                            
+                            sourceSize.width: cardDelegate.targetWidth * 1.5
+                            sourceSize.height: cardDelegate.targetHeight * 1.5
+                        }
                     }
 
-                    Rectangle {
+                    // Step 2: Mask with curved corners on ALL sides
+                    Item {
+                        id: reflectionMask
                         anchors.fill: parent
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: "#22000000" }
-                            GradientStop { position: 0.7; color: "#ff000000" }
+                        visible: false
+                        
+                        Rectangle {
+                            width: parent.width
+                            height: parent.height
+                            radius: cardFrame.radius
+                            color: "black"
+                        }
+                    }
+
+                    // Step 3: Apply mask to get curved reflection
+                    OpacityMask {
+                        id: maskedReflection
+                        anchors.fill: parent
+                        source: reflectionContent
+                        maskSource: reflectionMask
+                    }
+
+                    // Step 4: Stack the masked reflection with gradient on top
+                    Item {
+                        anchors.fill: parent
+                        
+                        // The masked reflection at bottom layer
+                        Loader {
+                            anchors.fill: parent
+                            sourceComponent: maskedReflection
+                            asynchronous: false
+                        }
+                        
+                        // Gradient overlay on top (darkens the bottom)
+                        Rectangle {
+                            anchors.fill: parent
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: "#00000000" }
+                                GradientStop { position: 0.5; color: "#00000000" }
+                                GradientStop { position: 0.8; color: "#33000000" }
+                                GradientStop { position: 0.95; color: "#88000000" }
+                                GradientStop { position: 1.0; color: "#dd000000" }
+                            }
                         }
                     }
                 }

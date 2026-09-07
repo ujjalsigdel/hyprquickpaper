@@ -191,7 +191,7 @@ PanelWindow {
     }
 
     // -----------------------------------------------------
-    // 2. TIERED 3D FLOATING CLOUD (REPEATER)
+    // 2. TIERED 3D FLOATING CLOUD (REPEATER) - NO REFLECTIONS
     // -----------------------------------------------------
     Item {
         id: stage
@@ -269,7 +269,7 @@ PanelWindow {
                 Behavior on opacity { NumberAnimation { duration: 400 } }
                 Behavior on z { NumberAnimation { duration: 400 } }
 
-                // The actual wallpaper card
+                // The actual wallpaper card (no reflections)
                 Rectangle {
                     id: cardFrame
                     anchors.fill: parent
@@ -358,103 +358,7 @@ PanelWindow {
                     }
                 }
 
-                // -----------------------------------------------------
-                // REFLECTION WITH PROPER GRADIENT PLACEMENT
-                // -----------------------------------------------------
-                Item {
-                    id: reflectionContainer
-                    anchors.top: cardFrame.bottom
-                    anchors.left: cardFrame.left
-                    anchors.right: cardFrame.right
-                    height: cardFrame.height * 0.6
-                    visible: absDiff <= 2
-                    
-                    // Overall container opacity
-                    opacity: {
-                        if (absDiff === 0) return 0.65
-                        if (absDiff === 1) return 0.35
-                        return 0.20
-                    }
-
-                    // Step 1: The reflected image (without any gradient)
-                    Item {
-                        id: reflectionContent
-                        anchors.fill: parent
-                        visible: false
-
-                        Image {
-                            id: reflectionImg
-                            width: parent.width
-                            height: cardFrame.height
-                            anchors.top: parent.top
-                            
-                            source: {
-                                if (!cardDelegate.safeFileName) return "";
-                                let basePath = configs.cache_path.replace("~", Quickshell.env("HOME"));
-                                if (!basePath.endsWith("/")) basePath += "/";
-                                return "file://" + basePath + cardDelegate.safeFileName;
-                            }
-                            
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
-                            transform: Scale { 
-                                origin.x: width/2
-                                origin.y: height/2
-                                yScale: -1 
-                            }
-                            
-                            sourceSize.width: cardDelegate.targetWidth * 1.5
-                            sourceSize.height: cardDelegate.targetHeight * 1.5
-                        }
-                    }
-
-                    // Step 2: Mask with rounded corners on ALL sides
-                    Item {
-                        id: reflectionMask
-                        anchors.fill: parent
-                        visible: false
-                        
-                        Rectangle {
-                            width: parent.width
-                            height: parent.height
-                            radius: cardFrame.radius
-                            color: "black"
-                        }
-                    }
-
-                    // Step 3: Apply mask to get rounded reflection
-                    OpacityMask {
-                        id: maskedReflection
-                        anchors.fill: parent
-                        source: reflectionContent
-                        maskSource: reflectionMask
-                    }
-
-                    // Step 4: Stack the masked reflection with gradient on top
-                    Item {
-                        anchors.fill: parent
-                        
-                        // The masked reflection at bottom layer
-                        Loader {
-                            anchors.fill: parent
-                            sourceComponent: maskedReflection
-                            asynchronous: false
-                        }
-                        
-                        // Gradient overlay on top (doesn't darken the reflection beneath)
-                        Rectangle {
-                            anchors.fill: parent
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#00000000" }
-                                GradientStop { position: 0.5; color: "#00000000" }
-                                GradientStop { position: 0.8; color: "#22000000" }
-                                GradientStop { position: 0.95; color: "#88000000" }
-                                GradientStop { position: 1.0; color: "#dd000000" }
-                            }
-                        }
-                    }
-                }
+                // No reflection component - removed entirely
 
                 MouseArea {
                     anchors.fill: parent
