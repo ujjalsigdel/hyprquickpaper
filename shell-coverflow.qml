@@ -15,6 +15,44 @@ PanelWindow {
     property string currentImagePath: ""
     property bool bgToggle: false
 
+    // -----------------------------------------------------
+    // COVERFLOW TUNABLES
+    // -----------------------------------------------------
+    property real cardW: 190
+    property real cardH: 340
+    property real centerScale: 1.15
+    property real edgeScale: 0.55
+    property real gapPx: 20  // small, clearly visible constant gap between EVERY pair of cards
+
+    property real skewFactor: -0.18
+
+    function scaleForOffset(offset) {
+        const a = Math.abs(offset);
+        if (a === 0) return centerScale;
+        if (a === 1) return 0.9;
+        if (a === 2) return 0.75;
+        if (a === 3) return 0.7;
+        if (a === 4) return 0.62;
+        return edgeScale;
+    }
+
+    function stepBetween(o) {
+        const sA = scaleForOffset(o)
+        const sB = scaleForOffset(o + 1)
+        const widthTerm = (sA + sB) * cardW / 2
+        const shearTerm = Math.abs(skewFactor) * cardH * Math.abs(sA - sB) / 2
+        return widthTerm + shearTerm + gapPx
+    }
+
+    function cumulativeOffset(n) {
+        const steps = Math.abs(n)
+        let sum = 0
+        for (let i = 0; i < steps; i++) {
+            sum += stepBetween(i)
+        }
+        return n < 0 ? -sum : sum
+    }
+
     anchors {
         top: true
         bottom: true
@@ -61,10 +99,23 @@ PanelWindow {
         sortField: FolderListModel.Name
     }
 
+    // Normalizes a config path: expands ~ and guarantees a trailing
+    // slash, so direct string concatenation with a fileName never
+    // produces a broken "...folderimage.png" path.
+    function normalizedPath(rawPath) {
+        let p = rawPath.replace("~", Quickshell.env("HOME"))
+        if (!p.endsWith("/")) p += "/"
+        return p
+    }
+
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(pathView.currentIndex, "fileName")
-        const fullPath = "file://" + configs.cache_path.replace("~", Quickshell.env("HOME")) + fileName
+        // Full-quality source for the background — wallpaper_path (the
+        // original folder), NOT cache_path. cache_path holds downscaled
+        // thumbnails generated for the small deck cards; reusing them
+        // here was why the background looked degraded.
+        const fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
         currentImagePath = fullPath
         if (!bgToggle) {
             bgImageB.source = fullPath
@@ -76,7 +127,9 @@ PanelWindow {
     }
 
     // -----------------------------------------------------
-    // BLURRED / DARKENED BACKGROUND OF THE SELECTED WALLPAPER
+    // CRISP, FULL-QUALITY BACKGROUND (matches reference: wallpaper
+    // shown clearly, only a soft fade at the very bottom edge so the
+    // dock stays legible — no blur, no desaturation, no glow blob)
     // -----------------------------------------------------
     Item {
         id: backgroundLayer
@@ -89,7 +142,7 @@ PanelWindow {
             asynchronous: true
             cache: false
             smooth: true
-            visible: false
+            visible: true
             opacity: bgToggle ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
         }
@@ -101,80 +154,36 @@ PanelWindow {
             asynchronous: true
             cache: false
             smooth: true
-            visible: false
+            visible: true
             opacity: bgToggle ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
         }
 
-        MultiEffect {
-            anchors.fill: parent
-            source: bgImageA
-            opacity: bgImageA.opacity
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 72
-            brightness: -0.25
-            saturation: 0.05
-        }
-
-        MultiEffect {
-            anchors.fill: parent
-            source: bgImageB
-            opacity: bgImageB.opacity
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 72
-            brightness: -0.25
-            saturation: 0.05
-        }
-
-        // Soft colored glow behind the center card, tinted with the accent color
-        Rectangle {
-            width: parent.width * 0.5
-            height: parent.height * 0.9
-            anchors.centerIn: parent
-            radius: width * 0.5
-            color: configs.border_color
-            opacity: 0.18
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 90
-            }
-        }
-
-        // Vignette / darken so the cards stay readable
+        // Soft fade at just the bottom edge, behind the dock, so cards
+        // stay readable against busy wallpapers — everything above
+        // that stays fully clear and undimmed, matching the reference.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
                 orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "#33000000" }
-                GradientStop { position: 0.5; color: "#00000000" }
-                GradientStop { position: 1.0; color: "#AA000000" }
-            }
-        }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "#77000000" }
-                GradientStop { position: 0.5; color: "#00000000" }
-                GradientStop { position: 1.0; color: "#77000000" }
+                GradientStop { position: 0.0; color: "#00000000" }
+                GradientStop { position: 0.72; color: "#00000000" }
+                GradientStop { position: 1.0; color: "#99000000" }
             }
         }
     }
 
     // -----------------------------------------------------
-    // CLEAN 3D COVER FLOW PATHVIEW
+    // FLAT ROW OF UNIFORMLY-SHEARED (PARALLELOGRAM) CARDS
     // -----------------------------------------------------
     PathView {
         id: pathView
         anchors.fill: parent
         focus: true
+        interactive: false
 
         model: folderModel
-        pathItemCount: 13
+        pathItemCount: 11
         preferredHighlightBegin: 0.5
         preferredHighlightEnd: 0.5
 
@@ -223,71 +232,70 @@ PanelWindow {
             Qt.quit();
         }
 
-        // Evenly spaced percent stops (0.125 apart) with x staying linear
-        // in percent, so every card sits an equal pixel distance from its
-        // neighbors — no clustering, no overlap, just a smooth symmetric
-        // falloff in scale/angle/opacity toward the edges.
         path: Path {
-            startX: -0.15 * main.width
+            startX: main.width / 2 + main.cumulativeOffset(-5)
             startY: main.height / 2
-            PathAttribute { name: "itemScale"; value: 0.35 }
-            PathAttribute { name: "itemAngle"; value: 38 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(-5) }
             PathAttribute { name: "itemOpacity"; value: 0.0 }
             PathAttribute { name: "itemZ"; value: 0 }
             PathPercent { value: 0.0 }
 
-            PathLine { x: main.width * 0.0125; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.45 }
-            PathAttribute { name: "itemAngle"; value: 34 }
-            PathAttribute { name: "itemOpacity"; value: 0.35 }
-            PathAttribute { name: "itemZ"; value: 10 }
-            PathPercent { value: 0.125 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(-4); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(-4) }
+            PathAttribute { name: "itemOpacity"; value: 0.4 }
+            PathAttribute { name: "itemZ"; value: 20 }
+            PathPercent { value: 0.1 }
 
-            PathLine { x: main.width * 0.175; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.62 }
-            PathAttribute { name: "itemAngle"; value: 28 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(-3); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(-3) }
             PathAttribute { name: "itemOpacity"; value: 0.65 }
-            PathAttribute { name: "itemZ"; value: 25 }
-            PathPercent { value: 0.25 }
+            PathAttribute { name: "itemZ"; value: 40 }
+            PathPercent { value: 0.2 }
 
-            PathLine { x: main.width * 0.3375; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.85 }
-            PathAttribute { name: "itemAngle"; value: 18 }
-            PathAttribute { name: "itemOpacity"; value: 0.9 }
-            PathAttribute { name: "itemZ"; value: 50 }
-            PathPercent { value: 0.375 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(-2); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(-2) }
+            PathAttribute { name: "itemOpacity"; value: 0.85 }
+            PathAttribute { name: "itemZ"; value: 60 }
+            PathPercent { value: 0.3 }
 
-            PathLine { x: main.width * 0.5; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 1.15 }
-            PathAttribute { name: "itemAngle"; value: 0 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(-1); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(-1) }
+            PathAttribute { name: "itemOpacity"; value: 1.0 }
+            PathAttribute { name: "itemZ"; value: 80 }
+            PathPercent { value: 0.4 }
+
+            PathLine { x: main.width / 2; y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(0) }
             PathAttribute { name: "itemOpacity"; value: 1.0 }
             PathAttribute { name: "itemZ"; value: 100 }
             PathPercent { value: 0.5 }
 
-            PathLine { x: main.width * 0.6625; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.85 }
-            PathAttribute { name: "itemAngle"; value: -18 }
-            PathAttribute { name: "itemOpacity"; value: 0.9 }
-            PathAttribute { name: "itemZ"; value: 50 }
-            PathPercent { value: 0.625 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(1); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(1) }
+            PathAttribute { name: "itemOpacity"; value: 1.0 }
+            PathAttribute { name: "itemZ"; value: 80 }
+            PathPercent { value: 0.6 }
 
-            PathLine { x: main.width * 0.825; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.62 }
-            PathAttribute { name: "itemAngle"; value: -28 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(2); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(2) }
+            PathAttribute { name: "itemOpacity"; value: 0.85 }
+            PathAttribute { name: "itemZ"; value: 60 }
+            PathPercent { value: 0.7 }
+
+            PathLine { x: main.width / 2 + main.cumulativeOffset(3); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(3) }
             PathAttribute { name: "itemOpacity"; value: 0.65 }
-            PathAttribute { name: "itemZ"; value: 25 }
-            PathPercent { value: 0.75 }
+            PathAttribute { name: "itemZ"; value: 40 }
+            PathPercent { value: 0.8 }
 
-            PathLine { x: main.width * 0.9875; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.45 }
-            PathAttribute { name: "itemAngle"; value: -34 }
-            PathAttribute { name: "itemOpacity"; value: 0.35 }
-            PathAttribute { name: "itemZ"; value: 10 }
-            PathPercent { value: 0.875 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(4); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(4) }
+            PathAttribute { name: "itemOpacity"; value: 0.4 }
+            PathAttribute { name: "itemZ"; value: 20 }
+            PathPercent { value: 0.9 }
 
-            PathLine { x: main.width * 1.15; y: main.height / 2 }
-            PathAttribute { name: "itemScale"; value: 0.35 }
-            PathAttribute { name: "itemAngle"; value: -38 }
+            PathLine { x: main.width / 2 + main.cumulativeOffset(5); y: main.height / 2 }
+            PathAttribute { name: "itemScale"; value: main.scaleForOffset(5) }
             PathAttribute { name: "itemOpacity"; value: 0.0 }
             PathAttribute { name: "itemZ"; value: 0 }
             PathPercent { value: 1.0 }
@@ -295,18 +303,20 @@ PanelWindow {
 
         delegate: Item {
             id: delegateItem
-            width: 190
-            height: 340
+            width: cardW
+            height: cardH
 
             scale: PathView.itemScale
             opacity: PathView.itemOpacity
             z: PathView.itemZ
 
-            transform: Rotation {
-                origin.x: delegateItem.width / 2
-                origin.y: delegateItem.height / 2
-                axis { x: 0; y: 1; z: 0 }
-                angle: PathView.itemAngle
+            transform: Matrix4x4 {
+                matrix: Qt.matrix4x4(
+                    1, main.skewFactor, 0, -main.skewFactor * main.cardH / 2,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                )
             }
 
             Rectangle {
@@ -361,6 +371,7 @@ PanelWindow {
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
+                    pathView.forceActiveFocus();
                     if (pathView.currentIndex === index) {
                         pathView.activateCurrent();
                     } else {

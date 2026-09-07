@@ -118,10 +118,23 @@ PanelWindow {
         onTriggered: currentDateTime = new Date()
     }
 
+    // Normalizes a config path: expands ~ and guarantees a trailing
+    // slash, so direct string concatenation with a fileName never
+    // produces a broken "...folderimage.png" path.
+    function normalizedPath(rawPath) {
+        let p = rawPath.replace("~", Quickshell.env("HOME"))
+        if (!p.endsWith("/")) p += "/"
+        return p
+    }
+
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(pathView.currentIndex, "fileName")
-        const fullPath = "file://" + configs.cache_path.replace("~", Quickshell.env("HOME")) + fileName
+        // Full-quality source for the background — wallpaper_path (the
+        // original folder), NOT cache_path. cache_path holds downscaled
+        // thumbnails generated for the small deck cards; reusing them
+        // here was why the background looked degraded.
+        const fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
         currentImagePath = fullPath
         if (!bgToggle) {
             bgImageB.source = fullPath
