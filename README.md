@@ -81,6 +81,12 @@ Same widget layout as Coverflow+Widgets, with background blur disabled — use t
 
 ![Widgets No Blur](assets/screenshots/widgets-noblur.jpg)
 
+
+### Hexagon
+A honeycomb grid of hexagonal tiles, navigable in both directions (columns and rows) instead of a single strip. Idea for this layout taken from [Horizon0427/Arch-Config](https://github.com/Horizon0427/Arch-Config) — the hex-grid wallpaper picker there was the inspiration, rebuilt here from scratch for Quickshell/QML.
+
+![Hexagon](assets/screenshots/hexagon.jpg)
+
 ### Classic List
 A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
 

@@ -12,6 +12,8 @@ Scope {
     // property string activeLayout: "shell-coverflow-widgets.qml"
     // property string activeLayout: "shell-widgets-noblur.qml"
     property string activeLayout: "shell-bottom-dock.qml"
+    // property string activeLayout: "shell-hexagon.qml"
+
 
     Loader {
         active: true
