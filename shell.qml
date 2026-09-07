@@ -10,8 +10,8 @@ Scope {
 
     // property string activeLayout: "shell-classic.qml"
     // property string activeLayout: "shell-coverflow.qml"
-    // property string activeLayout: "shell-coverflow-widgets.qml"
-    // property string activeLayout: "shell-widgets-noblur.qml"
+    // property string activeLayout: "shell-coverflow-clear.qml"
+    // property string activeLayout: "shell-coverflow-minimal.qml"
     property string activeLayout: "shell-bottom-dock.qml"
     // property string activeLayout: "shell-hexagon.qml"
     // property string activeLayout: "shell-floating.qml"

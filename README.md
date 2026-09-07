@@ -71,15 +71,16 @@ Cards fan out in 3D-style perspective around the focused item, classic "coverflo
 
 ![Coverflow](assets/screenshots/coverflow.jpg)
 
-### Coverflow + Widgets
-Same coverflow browsing, with extra on-screen widgets (clock/info) layered in.
-
-![Coverflow + Widgets](assets/screenshots/coverflow-widgets.jpg)
-
-### Widgets (No Blur)
+### Coverflow Clear
 Same widget layout as Coverflow+Widgets, with background blur disabled — use this if your compositor/GPU can't keep blur smooth.
 
-![Widgets No Blur](assets/screenshots/widgets-noblur.jpg)
+
+![Coverflow + Widgets](assets/screenshots/coverflow-clear.jpg)
+
+### Coverflow Minimal
+Same coverflow browsing, without on-screen widgets (clock/info) layered in.
+
+![Widgets No Blur](assets/screenshots/coverflow-minimal.jpg)
 
 
 ### Floating

@@ -14,14 +14,6 @@ PanelWindow {
     property int speed: 5000
     property string currentImagePath: ""
     property bool bgToggle: false
-    property string searchQuery: ""
-    property date currentDateTime: new Date()
-
-    // Load custom  font file directly
-    FontLoader {
-        id: customDisplayFont
-        source: Quickshell.shellPath("./assets/fonts/anurati-regular.otf")
-    }
 
     // -----------------------------------------------------
     // COVERFLOW TUNABLES
@@ -103,25 +95,27 @@ PanelWindow {
         id: folderModel
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
-        nameFilters: searchQuery.length > 0
-        ? ["*" + searchQuery + "*.png",
-        "*" + searchQuery + "*.jpg",
-        "*" + searchQuery + "*.jpeg"]
-        : ["*.png", "*.jpg", "*.jpeg"]
+        nameFilters: ["*.png", "*.jpg", "*.jpeg"]
         sortField: FolderListModel.Name
     }
 
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: currentDateTime = new Date()
+    // Normalizes a config path: expands ~ and guarantees a trailing
+    // slash, so direct string concatenation with a fileName never
+    // produces a broken "...folderimage.png" path.
+    function normalizedPath(rawPath) {
+        let p = rawPath.replace("~", Quickshell.env("HOME"))
+        if (!p.endsWith("/")) p += "/"
+        return p
     }
 
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(pathView.currentIndex, "fileName")
-        const fullPath = "file://" + configs.cache_path.replace("~", Quickshell.env("HOME")) + fileName
+        // Full-quality source for the background — wallpaper_path (the
+        // original folder), NOT cache_path. cache_path holds downscaled
+        // thumbnails generated for the small deck cards; reusing them
+        // here was why the background looked degraded.
+        const fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
         currentImagePath = fullPath
         if (!bgToggle) {
             bgImageB.source = fullPath
@@ -133,7 +127,9 @@ PanelWindow {
     }
 
     // -----------------------------------------------------
-    // BLURRED / DARKENED BACKGROUND OF THE SELECTED WALLPAPER
+    // CRISP, FULL-QUALITY BACKGROUND (matches reference: wallpaper
+    // shown clearly, only a soft fade at the very bottom edge so the
+    // dock stays legible — no blur, no desaturation, no glow blob)
     // -----------------------------------------------------
     Item {
         id: backgroundLayer
@@ -146,7 +142,7 @@ PanelWindow {
             asynchronous: true
             cache: false
             smooth: true
-            visible: false
+            visible: true
             opacity: bgToggle ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
         }
@@ -158,76 +154,22 @@ PanelWindow {
             asynchronous: true
             cache: false
             smooth: true
-            visible: false
+            visible: true
             opacity: bgToggle ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
         }
 
-        MultiEffect {
-            anchors.fill: parent
-            source: bgImageA
-            opacity: bgImageA.opacity
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 72
-            brightness: -0.25
-            saturation: 0.05
-        }
-
-        MultiEffect {
-            anchors.fill: parent
-            source: bgImageB
-            opacity: bgImageB.opacity
-            blurEnabled: true
-            blur: 1.0
-            blurMax: 72
-            brightness: -0.25
-            saturation: 0.05
-        }
-
-        Rectangle {
-            width: parent.width * 0.5
-            height: parent.height * 0.9
-            anchors.centerIn: parent
-            radius: width * 0.5
-            color: configs.border_color
-            opacity: 0.18
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                blurEnabled: true
-                blur: 1.0
-                blurMax: 90
-            }
-        }
-
+        // Soft fade at just the bottom edge, behind the dock, so cards
+        // stay readable against busy wallpapers — everything above
+        // that stays fully clear and undimmed, matching the reference.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
                 orientation: Gradient.Vertical
-                GradientStop { position: 0.0; color: "#33000000" }
-                GradientStop { position: 0.5; color: "#00000000" }
-                GradientStop { position: 1.0; color: "#AA000000" }
+                GradientStop { position: 0.0; color: "#00000000" }
+                GradientStop { position: 0.72; color: "#00000000" }
+                GradientStop { position: 1.0; color: "#99000000" }
             }
-        }
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: "#77000000" }
-                GradientStop { position: 0.5; color: "#00000000" }
-                GradientStop { position: 1.0; color: "#77000000" }
-            }
-        }
-    }
-
-    MouseArea {
-        id: dismissSearchArea
-        anchors.fill: parent
-        z: -1
-        enabled: searchInput.activeFocus
-        onClicked: {
-            searchInput.text = "";
-            pathView.forceActiveFocus();
         }
     }
 
@@ -453,101 +395,12 @@ PanelWindow {
                 for (let i = 0; i < big; i++) pathView.decrementCurrentIndex();
             } else if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) {
                 pathView.activateCurrent();
-            } else if (event.key === Qt.Key_Slash) {
-                searchInput.forceActiveFocus();
             } else if (event.key === Qt.Key_Escape) {
                 Qt.quit();
             } else {
                 return;
             }
             event.accepted = true;
-        }
-    }
-
-    // -----------------------------------------------------
-    // DATE / TIME + SEARCH HEADER
-    // -----------------------------------------------------
-    Column {
-        id: headerColumn
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: 60
-        spacing: 6
-        z: 200
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatDateTime(currentDateTime, "dddd").toUpperCase()
-            color: "#f2f2f2"
-            font.pixelSize: 60
-            font.letterSpacing: 12
-            font.family: customDisplayFont.name
-            font.capitalization: Font.AllUppercase
-            style: Text.Raised
-            styleColor: "#40000000"
-        }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: Qt.formatDateTime(currentDateTime, "dd MMM yyyy").toUpperCase()
-            color: "#cfcfcf"
-            font.pixelSize: 16
-            font.letterSpacing: 4
-            font.family: "sans-serif"
-        }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: "- " + Qt.formatDateTime(currentDateTime, "hh:mm AP") + " -"
-            color: "#cfcfcf"
-            font.pixelSize: 14
-            font.letterSpacing: 3
-            font.family: "sans-serif"
-        }
-
-        Item { width: 1; height: 14 }
-
-        Rectangle {
-            id: searchBox
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: 360
-            height: 40
-            radius: 20
-            color: "#33000000"
-            border.width: 1
-            border.color: "#33ffffff"
-
-            TextInput {
-                id: searchInput
-                anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                verticalAlignment: TextInput.AlignVCenter
-                color: "#f2f2f2"
-                font.pixelSize: 14
-                clip: true
-                selectByMouse: true
-
-                onTextChanged: searchQuery = text
-
-                Keys.onEscapePressed: {
-                    searchInput.text = "";
-                    pathView.forceActiveFocus();
-                }
-                Keys.onReturnPressed: pathView.forceActiveFocus()
-                Keys.onEnterPressed: pathView.forceActiveFocus()
-                Keys.onDownPressed: pathView.forceActiveFocus()
-                Keys.onTabPressed: pathView.forceActiveFocus()
-
-                Text {
-                    anchors.fill: parent
-                    verticalAlignment: Text.AlignVCenter
-                    text: "Search wallpapers..."
-                    color: "#88ffffff"
-                    font.pixelSize: 14
-                    visible: searchInput.text.length === 0
-                }
-            }
         }
     }
 }
