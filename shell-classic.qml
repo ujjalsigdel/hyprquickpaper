@@ -1,5 +1,5 @@
 import Quickshell
-import Quickshell.Io // for Process
+import Quickshell.Io
 import QtQuick
 import Qt.labs.folderlistmodel
 import Quickshell.Wayland
@@ -17,13 +17,50 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
-
-    // Explicitly enable alpha transparency for the Wayland surface
     WlrLayershell.namespace: "hyprquickpaper"
 
-    Component.onCompleted: {
-        Quickshell.execDetached(["bash", Quickshell.shellPath("cache.sh"), Quickshell.shellDir]);
-        console.log(Quickshell.shellDir);
+    // Mirrors get_video_extensions_pattern() in common.sh: prefer
+    // config.json's "video_extensions", fall back to this default list
+    // if it's missing/empty. Kept as a live binding (not a one-time
+    // value) so editing config.json and letting it reload updates the
+    // picker's file list too, not just the bash backend.
+    readonly property var defaultVideoExtensions: ["mp4", "webm", "mov", "avi", "mkv", "gif", "m4v", "flv", "wmv", "mpeg", "3gp"]
+    readonly property var videoExtensions: (configs.video_extensions && configs.video_extensions.length > 0)
+        ? configs.video_extensions
+        : defaultVideoExtensions
+
+    function isVideoFile(fileName) {
+        if (!fileName) return false;
+        const lower = fileName.toLowerCase();
+        for (let i = 0; i < videoExtensions.length; i++) {
+            if (lower.endsWith("." + videoExtensions[i])) return true;
+        }
+        return false;
+    }
+
+    function getThumbnailSource(fileName) {
+        if (!fileName) return "";
+        let basePath = configs.cache_path.replace("~", Quickshell.env("HOME"));
+        if (!basePath.endsWith("/")) basePath += "/";
+        
+        let thumbnailFileName = fileName;
+        if (isVideoFile(fileName)) {
+            const lastDot = fileName.lastIndexOf(".");
+            if (lastDot > 0) {
+                thumbnailFileName = fileName.substring(0, lastDot) + ".jpg";
+            }
+        }
+        return "file://" + basePath + thumbnailFileName;
+    }
+
+    // DEFER thumbnail generation script run to avoid UI lag on open
+    Timer {
+        interval: 1500
+        running: true
+        repeat: false
+        onTriggered: {
+            Quickshell.execDetached(["bash", Quickshell.shellPath("cache.sh"), Quickshell.shellDir]);
+        }
     }
 
     FileView {
@@ -37,10 +74,10 @@ PanelWindow {
             property string cache_path
             property int number_of_pictures
             property string border_color
+            property var video_extensions: []
         }
     }
 
-    // Read active wallpaper path from the ML4W user cache
     FileView {
         id: activeWallpaperFile
         path: Quickshell.env("HOME") + "/.cache/hyprquickpaper/current_wallpaper"
@@ -51,7 +88,9 @@ PanelWindow {
         id: folderModel
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
-        nameFilters: ["*.png", "*.jpg", "*.jpeg"]
+        nameFilters: ["*.png", "*.jpg", "*.jpeg"].concat(
+            main.videoExtensions.map(function(ext) { return "*." + ext; })
+        )
         sortField: FolderListModel.Name
     }
 
@@ -64,62 +103,57 @@ PanelWindow {
         orientation: ListView.Horizontal
         spacing: 4
         clip: true
-        // reuseItems: true
-        cacheBuffer: width * 2
+        // Prefetch adjacent tiles into memory for smooth panning
+        cacheBuffer: width * 1.5
 
         property int selectedIndex: 0
-        property real tileWidth: width / configs.number_of_pictures - 10
+        // Math.max(1, ...) guards against a 0 or unset number_of_pictures
+        // in config.json dividing by zero and blowing up tileWidth.
+        property real tileWidth: width / Math.max(1, configs.number_of_pictures) - 10
 
-        // Helper function to focus and center the selected index properly
         function centerOnIndex(idx) {
-            selectedIndex = idx
-            positionViewAtIndex(idx, ListView.Center)
-            ensureVisibleAnimated(idx)
+            selectedIndex = idx;
+            positionViewAtIndex(idx, ListView.Center);
+            ensureVisibleAnimated(idx);
         }
 
-        // NEW CODE (Wraps around endlessly in both directions):
         function clampIndex(i) {
-            if (count === 0)
-                return 0;
+            if (count === 0) return 0;
             return (i % count + count) % count;
         }
 
-        // Delay centering slightly so Qt Quick layout metrics complete rendering
         Timer {
             id: initTimer
-            interval: 50
+            interval: 16 // 1 frame delay
             repeat: false
             onTriggered: {
-                if (folderModel.count === 0) return
+                if (folderModel.count === 0) return;
 
-                // Retrieve current wallpaper path via text() function call
-                let rawText = activeWallpaperFile.text() ? activeWallpaperFile.text() : ""
-                let activePath = rawText.trim()
-                let matchedIndex = -1
+                let rawText = activeWallpaperFile.text() ? activeWallpaperFile.text() : "";
+                let activePath = rawText.trim();
+                let matchedIndex = -1;
 
                 if (activePath.length > 0) {
                     for (let i = 0; i < folderModel.count; i++) {
-                        let itemPath = folderModel.get(i, "filePath")
-                        if (itemPath === activePath) {
-                            matchedIndex = i
-                            break
+                        if (folderModel.get(i, "filePath") === activePath) {
+                            matchedIndex = i;
+                            break;
                         }
                     }
                 }
 
-                // Fallback to exact middle item if current wallpaper is not matched
                 if (matchedIndex === -1) {
-                    matchedIndex = Math.floor(folderModel.count / 2)
+                    matchedIndex = Math.floor(folderModel.count / 2);
                 }
 
-                list.centerOnIndex(matchedIndex)
+                list.centerOnIndex(matchedIndex);
             }
         }
 
         Connections {
             target: folderModel
             function onCountChanged() {
-                initTimer.restart()
+                initTimer.restart();
             }
         }
 
@@ -148,31 +182,28 @@ PanelWindow {
             SmoothedAnimation {
                 id: anim
                 property int v: 10
-                // velocity: v
                 duration: 100
             }
         }
+
         Component.onCompleted: {
             anim.v = main.speed;
         }
 
         delegate: Item {
             property bool active: index === list.selectedIndex
+            property bool isVideo: main.isVideoFile(fileName)
+            property int retryCount: 0
+            property int maxRetries: isVideo ? 20 : 6
             width: list.tileWidth
-            // width: active? 1000:list.tileWidth
             height: 500
-            // visible: shownNow
+
             Behavior on width {
                 NumberAnimation {
                     duration: 50
                     easing.type: Easing.OutCubic
                 }
             }
-            // anchors.centerIn: parent
-
-            // property bool shownNow:
-            //     index >= list.selectedIndex - configs.number_of_pictures &&
-            //     index <= list.selectedIndex + configs.number_of_pictures
 
             Text {
                 id: alt
@@ -180,51 +211,88 @@ PanelWindow {
                 color: configs.border_color
                 anchors.centerIn: parent
                 font.pixelSize: 16
-                transform: Shear {
-                    xFactor: -0.25
-                }
+                transform: Shear { xFactor: -0.25 }
+                visible: img.status !== Image.Ready
             }
+            
             Image {
                 id: img
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-
                 asynchronous: true
-                cache: false
-                smooth: true
-
-                source: "file://" + configs.cache_path.replace("~", Quickshell.env("HOME")) + fileName
-
-                // kind of an on-demand loading
-                // source: shownNow
-                //     ? "file://" + configs.cache_path + fileName
-                //     : ""
-
+                // ENABLED CACHING for instant subsequent opens
+                cache: true
+                smooth: false // Use false for higher rendering throughput during fast scroll
+                source: main.getThumbnailSource(fileName)
                 sourceSize.width: width
                 sourceSize.height: height
 
-                transform: Shear {
-                    xFactor: -0.25
-                }
+                transform: Shear { xFactor: -0.25 }
 
                 Timer {
                     id: retryTimer
-                    interval: 1000
+                    interval: 200
                     repeat: false
                     onTriggered: {
-                        let s = img.source;
-                        img.source = "";
-                        img.source = s;
+                        if (img.status !== Image.Ready) {
+                            let s = img.source;
+                            img.source = "";
+                            // Defer reassignment to the next event-loop tick
+                            // rather than doing it synchronously inline.
+                            Qt.callLater(function() {
+                                img.source = s;
+                            });
+                            retryCount++;
+                            if (retryCount < maxRetries) {
+                                // Back off instead of hammering every 200ms —
+                                // ffmpeg-generated video thumbnails can take
+                                // a while to land on first run.
+                                retryTimer.interval = Math.min(retryTimer.interval * 1.5, 2000);
+                                retryTimer.start();
+                            } else {
+                                alt.text = isVideo ? "🎬" : "✖";
+                            }
+                        }
                     }
                 }
 
                 onStatusChanged: {
-                    if (status === Image.Error) {
-                        alt.text = "Caching";
-                        retryTimer.start();
+                    if (status === Image.Ready) {
+                        alt.text = "";
+                        retryCount = 0;
+                    } else if (status === Image.Error) {
+                        if (retryCount < maxRetries) {
+                            retryTimer.start();
+                        } else {
+                            alt.text = isVideo ? "🎬" : "✖";
+                        }
                     }
                 }
             }
+            
+            Rectangle {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.margins: 12
+                width: 50
+                height: 20
+                radius: 4
+                color: "#cc000000"
+                border.width: 1
+                border.color: "#44ffffff"
+                z: 20
+                visible: isVideo && img.status === Image.Ready
+                
+                Text {
+                    anchors.centerIn: parent
+                    text: "VIDEO"
+                    color: "#ff6666"
+                    font.pixelSize: 9
+                    font.weight: Font.Bold
+                    font.letterSpacing: 1
+                }
+            }
+
             Rectangle {
                 id: border
                 z: 10
@@ -232,32 +300,17 @@ PanelWindow {
                 width: list.tileWidth
                 height: 500
                 color: "transparent"
-
                 border.width: 4
                 border.color: configs.border_color
-
-                transform: Shear {
-                    xFactor: -0.25
-                }
-
-                // x: list.selectedIndex * (width + list.spacing) - list.contentX
-
-                // Behavior on x {
-                //     NumberAnimation {
-                //         duration: 160
-                //         easing.type: Easing.OutCubic
-                //     }
-                // }
+                transform: Shear { xFactor: -0.25 }
             }
 
             MouseArea {
                 anchors.fill: parent
-
                 onClicked: {
                     list.selectedIndex = index;
                     list.activateCurrent();
                 }
-
                 onWheel: function (wheel) {
                     list.contentX = list.clampX(list.contentX - wheel.angleDelta.y * 2);
                     wheel.accepted = false;
