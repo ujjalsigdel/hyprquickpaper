@@ -74,7 +74,8 @@ So Quickshell is always used — no choice there, it's the engine this whole pro
 | **Hexacomb** | Honeycomb grid (2D navigation) |
 | **Classic List** | Plain vertical/list (lightest on GPU) |
 
-[📸 View Full Layout Gallery →](docs/LAYOUTS.md)
+[View Full Layout Gallery →] (docs/LAYOUTS.md)
+
 ---
 
 ## 🎬 Video Wallpapers
@@ -161,7 +162,7 @@ Edit `config.json` — the **only required change** for most users:
 - `wallpaper_path` — Your wallpaper folder
 - `video_extensions` — Video formats to support (Classic layout only)
 
-📖 **[Full Configuration Guide →](docs/CONFIGURATION.md)** — covers all fields, backend switching, video setup, and layout selection.
+[Full Configuration Guide →](docs/CONFIGURATION.md) — covers all fields, backend switching, video setup, and layout selection.
 ---
 
 ## ⌨️ Keybindings
