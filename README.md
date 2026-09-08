@@ -5,21 +5,9 @@ A fast, themeable, keyboard-driven Wayland wallpaper picker built with **Quicksh
 Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hyprquickpaper), itself inspired by [ilyamiro's dots](https://github.com/ilyamiro/nixos-configuration). This fork is rebuilt to run on **any** Wayland wallpaper backend, not just ML4W dotfiles.
 
 > [!IMPORTANT]
-> Out of the box this only needs **one** edit for most non-ML4W users: set `wallpaper_tool` in `config.json`. See [Configuration](#-configuration) below — everything else is optional tuning.
->
-> **If you're switching which backend you use** (e.g. from `hyprpaper` to `awww`, or vice versa), `config.json` is only half the job — you also need to make sure the right daemon autostarts with your compositor. See [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do) below. Skipping this step is the #1 cause of "the picker applies, but nothing changes."
+> **Before using:** Make sure `wallpaper_tool` in `config.json` matches your installed backend (`awww`, `hyprpaper`, `swaybg`, etc.), and the backend's daemon is running.  
+> See the [Configuration Guide](docs/CONFIGURATION.md) for details.
 
-> **Supported compositors only**  
-> This project requires a compositor that implements the `wlr-layer-shell` protocol  
-> (Hyprland, Sway, niri, river, …).  
->
-> It does **not** work on GNOME / Mutter, KDE Plasma, or any compositor that lacks  
-> `zwlr-layer-shell-v1`. Running it there produces:
-> ```
-> WARN: Failed to initialize layershell integration
-> ```
-> and the UI never appears.  
->
 > For GNOME there is a separate GTK4 implementation:  
 > [hugo-sants/hyprquickpaper-gnome](https://github.com/hugo-sants/hyprquickpaper-gnome)
 
@@ -35,28 +23,19 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 ---
 
-## 🧩 How it works: two separate pieces
+## 🎬 Demo
 
-This project is really two things working together, and it helps to know the difference before you touch `config.json`:
-
-- **Quickshell** (via `shell.qml` / `shell-*.qml`) is the picker UI itself — the card deck, the animations, keyboard navigation, thumbnail rendering. It's what you actually see and interact with. Quickshell has no idea how to change your desktop background; that's not its job.
-- **The wallpaper backend** (`awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names. Most of these backends (`awww`, `hyprpaper`, `swaybg`) run as a **background daemon** that must already be running before `commands.sh` can talk to it — that daemon is started by your compositor config, not by this project. See [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do).
-
-So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed and running on your system. See [Configuration](#-configuration) for which backend to choose.
 
 ---
 
 ## ✨ Features
 
-- **Multiple layout modes** — Bottom Dock, Coverflow, Coverflow+Widgets, Classic list, and a no-blur widgets variant. Switch by editing one line in `shell.qml`.
-- **Video wallpapers** *(Classic layout only, for now — see [Video Wallpapers](#-video-wallpapers))* — `.mp4`/`.webm`/`.mov`/etc. play via `mpvpaper`, auto-thumbnailed with `ffmpeg`, and tagged with a **VIDEO** badge in the picker.
-- **Sheared bottom-dock deck** — parallelogram cards, rounded corners, uniform height, active-selection glow border.
-- **Lossless full-quality background preview** — renders the actual full-resolution image behind the dock (not the downscaled thumbnail), crossfaded between picks.
-- **Automatic thumbnail cache** — downscaled previews generated via ImageMagick so scrolling stays smooth with hundreds of wallpapers.
-- **Live config reload** — `config.json` changes apply immediately, no restart needed.
-- **Fully keyboard-driven** — no mouse required, though clicking works too.
-- **Backend-agnostic** — works with awww, hyprpaper, waypaper, swaybg, or feh via a single config field, no bash editing required for common setups.
-- **Embedded custom typography** — bundled display font, no manual install needed.
+- **Multiple layout modes** — Bottom Dock, Coverflow, Hexacomb, Grid, and more.
+- **Video wallpapers** — `.mp4`/`.webm`/`.mov`/etc. play via `mpvpaper`, auto-thumbnailed with `ffmpeg`.
+- **Lossless background preview** — Renders the full-resolution image behind the dock.
+- **Automatic thumbnail cache** — Smooth scrolling for hundreds of wallpapers.
+- **Live config reload** — `config.json` changes apply immediately.
+- **Backend-agnostic** — Works seamlessly with awww, hyprpaper, waypaper, swaybg, or feh.
 
 ---
 
@@ -74,7 +53,18 @@ So Quickshell is always used — no choice there, it's the engine this whole pro
 | **Hexacomb** | Honeycomb grid (2D navigation) |
 | **Classic List** | Plain vertical/list (lightest on GPU) |
 
-See [Layout Gallery](docs/LAYOUTS.md)
+See [Layout Gallery](docs/LAYOUTS.md) to get proper overview of all the layouts.
+
+---
+
+## 🧩 How it works: two separate pieces
+
+This project is really two things working together, and it helps to know the difference before you touch `config.json`:
+
+- **Quickshell** (via `shell.qml` / `shell-*.qml`) is the picker UI itself — the card deck, the animations, keyboard navigation, thumbnail rendering. It's what you actually see and interact with. Quickshell has no idea how to change your desktop background; that's not its job.
+- **The wallpaper backend** (`awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names. Most of these backends (`awww`, `hyprpaper`, `swaybg`) run as a **background daemon** that must already be running before `commands.sh` can talk to it — that daemon is started by your compositor config, not by this project. See [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do).
+
+So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed and running on your system. See [Configuration](#-configuration) for which backend to choose.
 
 ---
 
@@ -163,6 +153,7 @@ Edit `config.json` — the **only required change** for most users:
 - `video_extensions` — Video formats to support (Classic layout only)
 
 See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend switching, video setup, and layout selection.
+
 ---
 
 ## ⌨️ Keybindings
