@@ -67,9 +67,9 @@ See [Layout Gallery](docs/LAYOUTS.md) to get proper overview of all the layouts.
 This project is really two things working together, and it helps to know the difference before you touch `config.json`:
 
 - **Quickshell** (via `shell.qml` / `shell-*.qml`) is the picker UI itself — the card deck, the animations, keyboard navigation, thumbnail rendering. It's what you actually see and interact with. Quickshell has no idea how to change your desktop background; that's not its job.
-- **The wallpaper backend** (`awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names. Most of these backends (`awww`, `hyprpaper`, `swaybg`) run as a **background daemon** that must already be running before `commands.sh` can talk to it — that daemon is started by your compositor config, not by this project. See [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do).
+- **The wallpaper backend** (`awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names. Most of these backends (`awww`, `hyprpaper`, `swaybg`) run as a **background daemon** that must already be running before `commands.sh` can talk to it — that daemon is started by your compositor config, not by this project. See [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do).
 
-So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed and running on your system. See [Configuration](#-configuration) for which backend to choose.
+So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed and running on your system. See [Configuration](docs/CONFIGURATION.md) for which backend to choose.
 
 ---
 
@@ -84,7 +84,7 @@ Video files (`.mp4`, `.webm`, `.mov`, and whatever else you list in `video_exten
 
 **Requirements:** `ffmpeg` (thumbnailing) and `mpvpaper` (playback) — see [Dependencies](#-dependencies). `mpvpaper` isn't in most distros' official repos, so `install.sh` will point you at the AUR or a source build if it can't install it directly.
 
-**Config:** `video_extensions` (which extensions count as video) and `video_thumbnail_interval` (thumbnail seek time) — see [Configuration](#-configuration).
+**Config:** `video_extensions` (which extensions count as video) and `video_thumbnail_interval` (thumbnail seek time) — see [Configuration](docs/CONFIGURATION.md).
 
 **Porting video support to another layout:** copy `isVideoFile()`, `getThumbnailSource()`, and the `videoExtensions` property from `shell-classic.qml`, extend that layout's `FolderListModel.nameFilters` to include video extensions, and add the VIDEO-badge `Rectangle` to its delegate. No bash changes needed — `cache.sh`/`commands.sh` already handle any layout's video files identically.
 
@@ -177,7 +177,7 @@ See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend s
 |---|---|
 | Blank/transparent window on launch | Missing Qt5Compat GraphicalEffects module — see Dependencies above. |
 | Stuck on "Caching…", thumbnails never load | Confirm `cache_path` is writable and `convert` (ImageMagick) is on `PATH`: `which convert`. |
-| Deck opens fine, but pressing Enter/Space does nothing | Two possible causes, check in order: **(1)** `wallpaper_tool` in `config.json` doesn't match what's actually installed (e.g. set to `hyprpaper` but you have `awww` installed) — fix in `config.json`. **(2)** `wallpaper_tool` is correct, but that backend's daemon isn't actually running — see [Switching wallpaper backends](#-switching-wallpaper-backends-the-part-configjson-cant-do) and check with `pgrep -a <daemon-name>`. |
+| Deck opens fine, but pressing Enter/Space does nothing | Two possible causes, check in order: **(1)** `wallpaper_tool` in `config.json` doesn't match what's actually installed (e.g. set to `hyprpaper` but you have `awww` installed) — fix in `config.json`. **(2)** `wallpaper_tool` is correct, but that backend's daemon isn't actually running — see [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do) and check with `pgrep -a <daemon-name>`. |
 | Picker doesn't highlight my actual current wallpaper | Confirm your `shell-*.qml` file's tracker path matches `~/.cache/hyprquickpaper/current_wallpaper` (this repo's default) rather than an old ML4W path. |
 | Thumbnail generation freezes/slows the system on first launch | Lower `cache_batch_size` to your CPU thread count instead of `0`. |
 | `.webp` wallpapers don't show up | The folder filter only matches `.png`/`.jpg`/`.jpeg` (plus `video_extensions`) — see Customization below. |
