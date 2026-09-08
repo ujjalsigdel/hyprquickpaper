@@ -25,14 +25,14 @@
 | `border_color` | Hex color of the selected card's border. | Any hex, e.g. `"#89b4fa"`. |
 | `cache_batch_size` | Max parallel `convert` jobs while building thumbnails. `0` = unlimited. | Set to roughly your CPU thread count (`4`–`16`) — don't leave at `0` with a large wallpaper folder. |
 | `stable_copy_path` | Optional. If set, `commands.sh` also copies every applied wallpaper to this fixed path — handy if some other tool (lock screen, status bar script) wants to always read the current wallpaper from one unchanging filename. | Leave `""` to skip. Otherwise a full path, e.g. `"~/Pictures/wallpaper.png"`. |
-| `video_extensions` | Which file extensions are treated as videos (Classic layout only — see [Video Wallpapers](#-video-wallpapers)) rather than static images, both by the picker and by `commands.sh`/`cache.sh`. | Default list covers the common ones (`mp4`, `webm`, `mov`, `avi`, `mkv`, `gif`, `m4v`, `flv`, `wmv`, `mpeg`, `3gp`) — trim or extend as needed. |
+| `video_extensions` | Which file extensions are treated as videos (Classic layout only — see [Video Wallpapers](../README.md#-video-wallpapers)) rather than static images, both by the picker and by `commands.sh`/`cache.sh`. | Default list covers the common ones (`mp4`, `webm`, `mov`, `avi`, `mkv`, `gif`, `m4v`, `flv`, `wmv`, `mpeg`, `3gp`) — trim or extend as needed. |
 | `video_thumbnail_interval` | Seconds into a video `cache.sh` seeks before grabbing the thumbnail frame. Falls back to 1s, then a frame-0 grab, if the video is shorter than this. | `5` is a reasonable default; lower it if your clips are short. |
 
 Changes to `config.json` apply live — no restart needed. **This does not apply to the daemon autostart change below** — that one needs a session restart, since it's a compositor-level setting outside this project's control.
 
 **Which `wallpaper_tool` should I actually pick?**
 
-> Note: `wallpaper_tool` only governs *static images*. Any file matching `video_extensions` always plays through `mpvpaper` instead, regardless of what `wallpaper_tool` is set to — none of the static-image backends can render video. See [Video Wallpapers](#-video-wallpapers).
+> Note: `wallpaper_tool` only governs *static images*. Any file matching `video_extensions` always plays through `mpvpaper` instead, regardless of what `wallpaper_tool` is set to — none of the static-image backends can render video. See [Video Wallpapers](../README.md#-video-wallpapers).
 
 - **`awww` (default) — recommended for almost everyone.** Nicest-looking transitions (formerly `swww`, renamed/re-based upstream in late 2025 — the old `swww`/`swww-daemon` binaries are effectively unmaintained now, so use `awww`/`awww-daemon`, not `swww`). It's had some packaging turbulence around the rename, and has no official package on Fedora — `cargo install awww` there only installs the client half, not the daemon. Works great once correctly installed, just budget a bit of troubleshooting time on Fedora so Build from source, or change wallpaper_tool in config.json to hyprpaper/swaybg instead. 
 - **`hyprpaper`** — ships as part of the Hyprland project itself, so if you have Hyprland at all you already have access to it through the same channel (official repo, COPR, AUR, etc.). No transitions, but no separate third-party project to track either.
@@ -56,7 +56,7 @@ property string activeLayout: "shell-bottom-dock.qml"
 ```
 Only one line should be uncommented. Options: `shell-bottom-dock.qml`, `shell-coverflow.qml`, `shell-coverflow-widgets.qml`, `shell-classic.qml`, `shell-widgets-noblur.qml`.
 
-> **Video wallpaper support is currently Classic-only.** `shell-classic.qml` is the only layout with video detection, the `.jpg`-thumbnail lookup, and the **VIDEO** badge wired in. The other layouts' `FolderListModel.nameFilters` only match `.png`/`.jpg`/`.jpeg`, so video files simply won't appear in the picker there yet — they're not broken, just filtered out. If you want videos in another layout, see [Video Wallpapers](#-video-wallpapers) below for what to port over.
+> **Video wallpaper support is currently Classic-only.** `shell-classic.qml` is the only layout with video detection, the `.jpg`-thumbnail lookup, and the **VIDEO** badge wired in. The other layouts' `FolderListModel.nameFilters` only match `.png`/`.jpg`/`.jpeg`, so video files simply won't appear in the picker there yet — they're not broken, just filtered out. If you want videos in another layout, see [Video Wallpapers](../README.md#-video-wallpapers) below for what to port over.
 
 ---
 
