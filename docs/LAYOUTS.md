@@ -63,3 +63,7 @@ A two-pane grid browser — thumbnails on the left, a live "Currently Active" vs
 A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
 
 ![Classic List](../assets/screenshots/classic.jpg)
+
+---
+
+> Screenshots referenced above go under `assets/screenshots/` in this repo

@@ -90,10 +90,6 @@ Video files (`.mp4`, `.webm`, `.mov`, and whatever else you list in `video_exten
 
 ---
 
-> Screenshots referenced above go under `assets/screenshots/` in this repo — add your own there.
-
----
-
 ## 📋 Dependencies
 
 `install.sh` detects your package manager (pacman / dnf / apt) and installs all of these automatically, including the one that's easy to miss:
