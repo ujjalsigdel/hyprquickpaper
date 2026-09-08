@@ -30,6 +30,8 @@ Scope {
 
     // property string activeLayout: "shell-hexcomb.qml"
 
+    // property string activeLayout: "shell-grid-view.qml"
+    
     // property string activeLayout: "shell-classic.qml"
 
     Loader {

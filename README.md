@@ -115,6 +115,11 @@ A honeycomb grid of hexagonal tiles, navigable in both directions (columns and r
 ![Hexacomb](assets/screenshots/hexcomb.jpg)
 
 ---
+### Grid View
+A two-pane grid browser — thumbnails on the left, a live "Currently Active" vs "New Selection" comparison on the right so you can preview before committing. Focused thumbnail gets an accent-color outline; filename and `ENTER`/`ESC` hints shown below the preview.
+
+![Grid View](assets/screenshots/grid-view.jpg)
+---
 
 ### Classic List
 A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.

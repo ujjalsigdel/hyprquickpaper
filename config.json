@@ -5,5 +5,7 @@
     "number_of_pictures": 7,
     "border_color": "#C27B63",
     "cache_batch_size": 20,
-    "stable_copy_path": ""
+    "stable_copy_path": "",
+    "video_extensions": ["mp4", "webm", "mov", "avi", "mkv", "gif", "m4v", "flv", "wmv", "mpeg", "3gp"],
+    "video_thumbnail_interval": 5
 }
