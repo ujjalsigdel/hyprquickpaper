@@ -25,7 +25,11 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 ## 🎬 Demo
 
-https://github.com/user-attachments/assets/8741ccc4-7644-497e-afe4-1a187aa76f21
+
+
+https://github.com/user-attachments/assets/5d9b33d8-4af2-49c8-ae8b-fc3031d17e4d
+
+
 
 ---
 
