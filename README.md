@@ -73,8 +73,6 @@ When you press `Enter`, the UI hands the chosen file to the `wallpaper_tool` def
 
 ## 🎬 Video Wallpapers
 
-## 🎬 Video Wallpapers
-
 You can use video files (e.g., `.mp4`, `.webm`) alongside static images. **Currently supported in the Classic layout only (`shell-classic.qml`).**
 
 - **How it works:** `cache.sh` generates a still thumbnail using `ffmpeg`, and the UI displays a **VIDEO** badge. When selected, the UI bypasses your static image backend and plays the video automatically via `mpvpaper` (muted and looping).
