@@ -80,6 +80,8 @@ You can use video files (e.g., `.mp4`, `.webm`) alongside static images. **Curre
 - **Config:** Adjust `video_extensions` and `video_thumbnail_interval` in [Configuration](docs/CONFIGURATION.md).
 - **Porting to other layouts:** Copy `isVideoFile()`, `getThumbnailSource()`, and `videoExtensions` from `shell-classic.qml`. Add the video extensions to your layout's `nameFilters`, and copy the VIDEO badge `Rectangle` into the delegate. No bash changes are needed.
 
+Tip : you can use [mpvpaper-stop](https://github.com/pvtoari/mpvpaper-stop) to pause the wallpaper when it’s in background to save on resources and battery usage.
+
 ---
 
 ## 📋 Dependencies
