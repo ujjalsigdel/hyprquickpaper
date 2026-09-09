@@ -104,26 +104,26 @@ Tip : you can use [mpvpaper-stop](https://github.com/pvtoari/mpvpaper-stop) to p
 ## 🚀 Installation
 
 ```bash
-git clone https://github.com/ujjalsigdel/hyprquickpaper.git ~/.config/hyprquickpaper
-cd ~/.config/hyprquickpaper
+git clone https://github.com/ujjalsigdel/hyprquickpaper.git ~/.config/quickshell/hyprquickpaper
+cd ~/.config/quickshell/hyprquickpaper
 chmod +x install.sh
 ./install.sh
 ```
 
 Then launch with:
 ```bash
-qs -p ~/.config/hyprquickpaper
+qs -p ~/.config/quickshell/hyprquickpaper
 ```
 
 Bind it to a Hyprland key so you don't retype that — add to `hyprland.conf` or `Keybindings.lua`:
 ```ini
-bind = SUPER, W, exec, qs -p ~/.config/hyprquickpaper
+bind = SUPER, W, exec, qs -p ~/.config/quickshell/hyprquickpaper
 ```
 or
 ```lua
 hl.bind(
 	mainMod .. " + CTRL + W",
-	hl.dsp.exec_cmd("qs -p ~/.config/hyprquickpaper"),
+	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper"),
 	{ description = "Open HyprQuickPaper Wallpaper Picker" }
 )
 ```
