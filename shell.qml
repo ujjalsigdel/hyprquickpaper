@@ -9,7 +9,9 @@ Scope {
     // "shell-coverflow.qml" or "shell-classic.qml"
 //-----------------------------------------------------------------------------------------
 
-    property string activeLayout: "shell-bottom-dock.qml"
+    property string activeLayout: "shell-classic.qml"
+
+    // property string activeLayout: "shell-bottom-dock.qml"
 
     // property string activeLayout: "shell-coverflow.qml"
     // property string activeLayout: "shell-coverflow-clear.qml"
@@ -32,8 +34,6 @@ Scope {
 
     // property string activeLayout: "shell-grid-view.qml"
     
-    // property string activeLayout: "shell-classic.qml"
-
     Loader {
         active: true
         source: Qt.resolvedUrl(root.activeLayout)
