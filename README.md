@@ -86,7 +86,8 @@ Tip : you can use [mpvpaper-stop](https://github.com/pvtoari/mpvpaper-stop) to p
 
 ## 📋 Dependencies
 
-`install.sh` detects your package manager (pacman / dnf / apt) and installs all of these automatically, including the one that's easy to miss or simply checkout [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
+`install.sh` automatically sets up dependencies.If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here. Also checkout [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
+
 
 - [Quickshell](https://quickshell.org) (`qs` / `quickshell`) — renders the whole UI
 - `jq` — parses `config.json`
@@ -96,9 +97,7 @@ Tip : you can use [mpvpaper-stop](https://github.com/pvtoari/mpvpaper-stop) to p
 - `ffmpeg` — generates video thumbnails *(only needed if you have video wallpapers)*
 - [mpvpaper](https://github.com/GhostNaN/mpvpaper) — plays video wallpapers *(only needed if you have video wallpapers; not in official repos on most distros — `install.sh` prints AUR/source-build instructions since it can't always install this one for you)*
 
-If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here.
-
-**How to tell if Qt5Compat is the problem:** if the picker window opens but stays blank/transparent, or you see QML import errors mentioning `Qt5Compat` in your terminal when launching, that module is missing — re-run `install.sh` or install it manually per your distro's package name above.
+> 💡 **Having issues launching or generating thumbnails?** Check the **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**.
 
 ---
 
@@ -167,18 +166,9 @@ See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend s
 
 ## 🛠️ Troubleshooting              
 
-| Symptom | Fix |
-|---|---|
-| Blank/transparent window on launch | Missing Qt5Compat GraphicalEffects module — see Dependencies above. |
-| Stuck on "Caching…", thumbnails never load | Confirm `cache_path` is writable and `convert` (ImageMagick) is on `PATH`: `which convert`. |
-| Deck opens fine, but pressing Enter/Space does nothing | Two possible causes, check in order: **(1)** `wallpaper_tool` in `config.json` doesn't match what's actually installed (e.g. set to `hyprpaper` but you have `awww` installed) — fix in `config.json`. **(2)** `wallpaper_tool` is correct, but that backend's daemon isn't actually running — see [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do) and check with `pgrep -a <daemon-name>`. |
-| Picker doesn't highlight my actual current wallpaper | Confirm your `shell-*.qml` file's tracker path matches `~/.cache/hyprquickpaper/current_wallpaper` (this repo's default) rather than an old ML4W path. |
-| Thumbnail generation freezes/slows the system on first launch | Lower `cache_batch_size` to your CPU thread count instead of `0`. |
-| `.webp` wallpapers don't show up | The folder filter only matches `.png`/`.jpg`/`.jpeg` (plus `video_extensions`) — see Customization below. |
-| Video files don't show up in the picker at all | Video support is currently Classic-layout only — see [Video Wallpapers](#-video-wallpapers). If you're already on `shell-classic.qml`, confirm the file's extension is listed in `video_extensions`. |
-| Video wallpaper thumbnail is stuck on 🎬/never generates | Confirm `ffmpeg` is on `PATH` (`which ffmpeg`) and `cache_path` is writable. Check the `cache.sh` output for "Warning: Could not generate thumbnail for …" — some codecs/containers `ffmpeg` can't seek into will need a re-encode. |
-| Video wallpaper thumbnail shows but it won't actually play | Confirm `mpvpaper` is installed (`which mpvpaper`) — it's not in most distros' official repos, see [Dependencies](#-dependencies). Video playback always goes through `mpvpaper` regardless of `wallpaper_tool`. |
-| Wallpaper doesn't survive a reboot | Expected — this project doesn't manage boot-time restore. See "Persistence across reboots" above. |
+If you encounter issues like a blank window on launch, missing thumbnails, or video playback errors, check out the full guide:
+
+➡️ **[View the Troubleshooting Guide](docs/TROUBLESHOOTING.md)**
 
 ---
 
