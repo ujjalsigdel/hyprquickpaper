@@ -2,7 +2,7 @@
 
 A fast, themeable, keyboard-driven Wayland wallpaper picker built with **Quickshell** and **QML** for Hyprland (and any other `wlr-layer-shell` compositor). Pick a wallpaper with `h`/`l`, jump around with `u`/`d`, confirm with `Space`/`Enter`, bail with `Esc`.
 
-Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hyprquickpaper), itself inspired by [ilyamiro's dots](https://github.com/ilyamiro/nixos-configuration). This fork is rebuilt to run on **any** Wayland wallpaper backend, not just ML4W dotfiles.
+Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hyprquickpaper), itself inspired by [ilyamiro's dots](https://github.com/ilyamiro/nixos-configuration). This fork is rebuilt to run on **any** Wayland wallpaper backend.
 
 > [!IMPORTANT]
 > **Before using:** Make sure `wallpaper_tool` in `config.json` matches your installed backend (`awww`, `hyprpaper`, `swaybg`, etc.), and the backend's daemon is running.  
@@ -25,11 +25,7 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 ## 🎬 Demo
 
-
-
 https://github.com/user-attachments/assets/5d9b33d8-4af2-49c8-ae8b-fc3031d17e4d
-
-
 
 ---
 
@@ -48,7 +44,8 @@ https://github.com/user-attachments/assets/5d9b33d8-4af2-49c8-ae8b-fc3031d17e4d
 
 | Layout | Description |
 |--------|-------------|
-| **Bottom Dock** *(default)* | Sheared parallelogram deck along the bottom |
+| **Classic List** *(default)*| Plain vertical/list (lightest on GPU) |
+| **Bottom Dock**  | Sheared parallelogram deck along the bottom |
 | **Coverflow** | 3D perspective coverflow |
 | **Coverflow Clear** | Coverflow without blur |
 | **Coverflow Minimal** | Coverflow without widgets |
@@ -56,51 +53,48 @@ https://github.com/user-attachments/assets/5d9b33d8-4af2-49c8-ae8b-fc3031d17e4d
 | **Floating Clear** | Floating with high-res background |
 | **Floating Minimal** | Floating without overlay |
 | **Hexacomb** | Honeycomb grid (2D navigation) |
-| **Classic List** | Plain vertical/list (lightest on GPU) |
+| **Grid View** | A two-pane grid browser |
 
 See [Layout Gallery](docs/LAYOUTS.md) to get proper overview of all the layouts.
 
 ---
 
-## 🧩 How it works: two separate pieces
+## 🧩 Architecture: How it works
 
-This project is really two things working together, and it helps to know the difference before you touch `config.json`:
+This project relies on two separate components working together:
 
-- **Quickshell** (via `shell.qml` / `shell-*.qml`) is the picker UI itself — the card deck, the animations, keyboard navigation, thumbnail rendering. It's what you actually see and interact with. Quickshell has no idea how to change your desktop background; that's not its job.
-- **The wallpaper backend** (`awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or `ml4w`) is a separate program whose only job is: take an image path, paint it on screen. Once you press `Space`/`Enter` in the picker, `commands.sh` hands the chosen file off to whichever backend `wallpaper_tool` in `config.json` names. Most of these backends (`awww`, `hyprpaper`, `swaybg`) run as a **background daemon** that must already be running before `commands.sh` can talk to it — that daemon is started by your compositor config, not by this project. See [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do).
+- **The UI (Quickshell):** The visual picker (`shell.qml`) that handles the card deck, animations, thumbnails, and keyboard navigation. 
+- **The Wallpaper Backend:** The background daemon (`awww`, `hyprpaper`, `swaybg`, etc.) that actually paints the image on your screen. 
 
-So Quickshell is always used — no choice there, it's the engine this whole project runs on. `wallpaper_tool` is the one thing you pick based on what's actually installed and running on your system. See [Configuration](docs/CONFIGURATION.md) for which backend to choose.
+When you press `Enter`, the UI hands the chosen file to the `wallpaper_tool` defined in your `config.json`. 
+> ⚠️ **Note:** Your backend daemon must be autostarted by your compositor (e.g., in `hyprland.conf`), not by this project. See [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do).
 
 ---
 
 ## 🎬 Video Wallpapers
 
-Video files (`.mp4`, `.webm`, `.mov`, and whatever else you list in `video_extensions`) can be used as wallpapers alongside static images — **currently only in the Classic layout** (`shell-classic.qml`). Support for the other layouts hasn't been ported over yet; see the note in [`shell.qml`](#shellqml--which-layout-renders) above.
+## 🎬 Video Wallpapers
 
-**How it works:**
-- `cache.sh` scans `wallpaper_path` for anything matching `video_extensions`, and grabs a still frame with `ffmpeg` (seeking to `video_thumbnail_interval` seconds in, falling back to 1s, then frame 0, for short clips) to use as the thumbnail — the same caching flow as image wallpapers, just via `ffmpeg` instead of `convert`.
-- In the picker, video entries are visually tagged with a small **VIDEO** badge over their thumbnail.
-- Selecting one hands it off through `commands.sh`, which detects it's a video and always plays it through `mpvpaper`, muted and looping, regardless of what `wallpaper_tool` is set to — `awww`/`hyprpaper`/etc. can't render video at all, so this path bypasses them entirely.
+You can use video files (e.g., `.mp4`, `.webm`) alongside static images. **Currently supported in the Classic layout only (`shell-classic.qml`).**
 
-**Requirements:** `ffmpeg` (thumbnailing) and `mpvpaper` (playback) — see [Dependencies](#-dependencies). `mpvpaper` isn't in most distros' official repos, so `install.sh` will point you at the AUR or a source build if it can't install it directly.
-
-**Config:** `video_extensions` (which extensions count as video) and `video_thumbnail_interval` (thumbnail seek time) — see [Configuration](docs/CONFIGURATION.md).
-
-**Porting video support to another layout:** copy `isVideoFile()`, `getThumbnailSource()`, and the `videoExtensions` property from `shell-classic.qml`, extend that layout's `FolderListModel.nameFilters` to include video extensions, and add the VIDEO-badge `Rectangle` to its delegate. No bash changes needed — `cache.sh`/`commands.sh` already handle any layout's video files identically.
+- **How it works:** `cache.sh` generates a still thumbnail using `ffmpeg`, and the UI displays a **VIDEO** badge. When selected, the UI bypasses your static image backend and plays the video automatically via `mpvpaper` (muted and looping).
+- **Requirements:** `ffmpeg` (for thumbnails) and `mpvpaper` (for playback). *(Note: `mpvpaper` usually requires an AUR/source build).*
+- **Config:** Adjust `video_extensions` and `video_thumbnail_interval` in [Configuration](docs/CONFIGURATION.md).
+- **Porting to other layouts:** Copy `isVideoFile()`, `getThumbnailSource()`, and `videoExtensions` from `shell-classic.qml`. Add the video extensions to your layout's `nameFilters`, and copy the VIDEO badge `Rectangle` into the delegate. No bash changes are needed.
 
 ---
 
 ## 📋 Dependencies
 
-`install.sh` detects your package manager (pacman / dnf / apt) and installs all of these automatically, including the one that's easy to miss:
+`install.sh` detects your package manager (pacman / dnf / apt) and installs all of these automatically, including the one that's easy to miss or simply checkout [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
 
 - [Quickshell](https://quickshell.org) (`qs` / `quickshell`) — renders the whole UI
 - `jq` — parses `config.json`
 - `imagemagick` (`convert`) — generates the thumbnail cache
 - **Qt5Compat GraphicalEffects** QML module — powers the rounded-corner card masking; not bundled with base Qt
-- A wallpaper backend of your choice: `awww`, `hyprpaper`, `waypaper`, `swaybg`, or `feh`
+- A wallpaper backend of your choice: [awww](https://codeberg.org/LGFae/awww), [hyprpaper](https://wiki.hypr.land/Hypr-Ecosystem/hyprpaper/), [waypaper](https://github.com/anufrievroman/waypaper), [swaybg](https://github.com/swaywm/swaybg), or `feh`
 - `ffmpeg` — generates video thumbnails *(only needed if you have video wallpapers)*
-- `mpvpaper` — plays video wallpapers *(only needed if you have video wallpapers; not in official repos on most distros — `install.sh` prints AUR/source-build instructions since it can't always install this one for you)*
+- [mpvpaper](https://github.com/GhostNaN/mpvpaper) — plays video wallpapers *(only needed if you have video wallpapers; not in official repos on most distros — `install.sh` prints AUR/source-build instructions since it can't always install this one for you)*
 
 If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here.
 

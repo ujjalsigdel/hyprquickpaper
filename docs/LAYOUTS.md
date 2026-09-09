@@ -1,6 +1,13 @@
 ## 📸 Layouts
 
-### Bottom Dock *(default)*
+### Classic List *(default)*
+A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
+
+![Classic List](../assets/screenshots/classic.jpg)
+
+---
+
+### Bottom Dock 
 A sheared, parallelogram card deck along the bottom of the screen, uniform card height, with the focused card scaled up and outlined in your accent color.
 
 ![Bottom Dock](../assets/screenshots/bottom-dock.jpg)
@@ -57,12 +64,6 @@ A honeycomb grid of hexagonal tiles, navigable in both directions (columns and r
 A two-pane grid browser — thumbnails on the left, a live "Currently Active" vs "New Selection" comparison on the right so you can preview before committing. Focused thumbnail gets an accent-color outline; filename and `ENTER`/`ESC` hints shown below the preview.
 
 ![Grid View](../assets/screenshots/grid-view.jpg)
----
-
-### Classic List
-A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
-
-![Classic List](../assets/screenshots/classic.jpg)
 
 ---
 
