@@ -129,15 +129,7 @@ echo "==> Checking awww (default wallpaper backend)..."
 if ! command -v awww &>/dev/null; then
     echo "--> awww not found, installing..."
     if command -v pacman &>/dev/null; then
-        # awww is AUR-only on Arch
-        if command -v yay &>/dev/null; then
-            yay -S --needed awww
-        elif command -v paru &>/dev/null; then
-            paru -S --needed awww
-        else
-            echo "awww is only on the AUR for Arch — install an AUR helper first, then run:"
-            echo "    yay -S awww      (or: paru -S awww)"
-        fi
+        sudo pacman -S --needed awww
     elif command -v dnf &>/dev/null; then
         echo "Note: awww has no official Fedora package yet."
         echo "  'cargo install awww' only installs the client, not awww-daemon —"
