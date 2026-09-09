@@ -103,15 +103,7 @@ echo "==> Checking Quickshell..."
 if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
     echo "--> Quickshell not detected."
     if command -v pacman &>/dev/null; then
-        # Quickshell is AUR-only on Arch, not in the official repos.
-        if command -v yay &>/dev/null; then
-            yay -S --needed quickshell-git
-        elif command -v paru &>/dev/null; then
-            paru -S --needed quickshell-git
-        else
-            echo "Quickshell is only on the AUR for Arch — install an AUR helper first, then run:"
-            echo "    yay -S quickshell-git      (or: paru -S quickshell-git)"
-        fi
+        sudo pacman -S --needed quickshell || echo "Warning: could not install quickshell automatically."
     elif command -v dnf &>/dev/null; then
         sudo dnf copr enable -y errornointernet/quickshell || echo "Warning: could not enable the quickshell copr automatically."
         sudo dnf install -y quickshell || echo "Warning: could not install quickshell automatically. See https://quickshell.org/docs/guide/install-setup"
@@ -129,15 +121,7 @@ echo "==> Checking awww (default wallpaper backend)..."
 if ! command -v awww &>/dev/null; then
     echo "--> awww not found, installing..."
     if command -v pacman &>/dev/null; then
-        # awww is AUR-only on Arch
-        if command -v yay &>/dev/null; then
-            yay -S --needed awww
-        elif command -v paru &>/dev/null; then
-            paru -S --needed awww
-        else
-            echo "awww is only on the AUR for Arch — install an AUR helper first, then run:"
-            echo "    yay -S awww      (or: paru -S awww)"
-        fi
+        sudo pacman -S --needed awww || echo "Warning: could not install awww automatically."
     elif command -v dnf &>/dev/null; then
         echo "Note: awww has no official Fedora package yet."
         echo "  'cargo install awww' only installs the client, not awww-daemon —"
