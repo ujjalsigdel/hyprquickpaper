@@ -1,5 +1,7 @@
 ## 📸 Layouts
 
+> **Note:** These are just premade, out-of-the-box layouts to make things easier for you. You can always adjust or modify them from their code — blur, size, widgets, spacing, animations, and more to fit your own taste.
+
 ### Classic List *(default)*
 A plain vertical/list layout — lightest on GPU, good for weaker hardware or minimal setups.
 
