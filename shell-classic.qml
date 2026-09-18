@@ -19,11 +19,6 @@ PanelWindow {
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
     WlrLayershell.namespace: "hyprquickpaper"
 
-    // Mirrors get_video_extensions_pattern() in common.sh: prefer
-    // config.json's "video_extensions", fall back to this default list
-    // if it's missing/empty. Kept as a live binding (not a one-time
-    // value) so editing config.json and letting it reload updates the
-    // picker's file list too, not just the bash backend.
     readonly property var defaultVideoExtensions: ["mp4", "webm", "mov", "avi", "mkv", "gif", "m4v", "flv", "wmv", "mpeg", "3gp"]
     readonly property var videoExtensions: (configs.video_extensions && configs.video_extensions.length > 0)
         ? configs.video_extensions
@@ -94,37 +89,48 @@ PanelWindow {
         sortField: FolderListModel.Name
     }
 
-    ListView {
+    PathView {
         id: list
         anchors.fill: parent
         focus: true
 
         model: folderModel
-        orientation: ListView.Horizontal
-        spacing: 4
-        clip: true
-        // Tighter prefetch — enough for smooth panning without holding too
-        // many decoded tiles in memory at once.
-        cacheBuffer: width * 0.5
 
-        property int selectedIndex: 0
-        // Math.max(1, ...) guards against a 0 or unset number_of_pictures
-        // in config.json dividing by zero and blowing up tileWidth.
         property real tileWidth: width / Math.max(1, configs.number_of_pictures) - 10
+        property real spacing: 4
+        property real step: tileWidth + spacing
 
-        // When the total content is narrower than the viewport, pad both
-        // sides so the strip can be centered instead of hugging the left.
-        property real sidePadding: Math.max(0, (width - contentWidth) / 2)
+        property int peekCount: 2
+        pathItemCount: Math.max(1, Math.min(folderModel.count, configs.number_of_pictures + peekCount * 2))
 
-        function centerOnIndex(idx) {
-            selectedIndex = idx;
-            positionViewAtIndex(idx, ListView.Center);
-            ensureVisibleAnimated(idx);
+        preferredHighlightBegin: 0.5
+        preferredHighlightEnd: 0.5
+        highlightRangeMode: PathView.StrictlyEnforceRange
+
+        highlightMoveDuration: Math.max(50, (step / main.speed) * 1000)
+
+        path: Path {
+            startX: list.width / 2 - (list.pathItemCount * list.step) / 2
+            startY: main.height / 2
+            PathLine {
+                x: list.width / 2 + (list.pathItemCount * list.step) / 2
+                y: main.height / 2
+            }
         }
 
         function clampIndex(i) {
             if (count === 0) return 0;
             return (i % count + count) % count;
+        }
+
+        function centerOnIndex(idx) {
+            currentIndex = idx;
+        }
+
+        function activateCurrent() {
+            const path = folderModel.get(currentIndex, "filePath");
+            Quickshell.execDetached(["bash", Quickshell.shellPath("commands.sh"), path]);
+            Qt.quit();
         }
 
         Timer {
@@ -162,67 +168,15 @@ PanelWindow {
             }
         }
 
-        function activateCurrent() {
-            const path = folderModel.get(selectedIndex, "filePath");
-            Quickshell.execDetached(["bash", Quickshell.shellPath("commands.sh"), path]);
-            Qt.quit();
-        }
-
-        function clampX(x) {
-            return Math.max(0, Math.min(x, contentWidth - width));
-        }
-
-        function ensureVisibleAnimated(i) {
-            const step = tileWidth + spacing;
-            const itemStart = sidePadding + i * step;
-            const itemEnd = itemStart + tileWidth + 20;
-
-            if (itemStart < contentX)
-                contentX = clampX(itemStart);
-            else if (itemEnd > contentX + width)
-                contentX = clampX(itemStart - (width - step));
-        }
-
-        Behavior on contentX {
-            SmoothedAnimation {
-                id: anim
-                property int v: 10
-                duration: 100
-            }
-        }
-
-        Component.onCompleted: {
-            anim.v = main.speed;
-        }
-
-        header: Item {
-            width: list.sidePadding
-            height: 1
-        }
-
-        footer: Item {
-            width: list.sidePadding
-            height: 1
-        }
-
         delegate: Item {
-            property bool active: index === list.selectedIndex
+            id: delegateItem
+            property bool isCurrent: PathView.isCurrentItem
             property bool isVideo: main.isVideoFile(fileName)
-            property bool nearFocus: Math.abs(index - list.selectedIndex) <= 3
+            property bool nearFocus: Math.abs(index - list.currentIndex) <= 3
             property int retryCount: 0
-            // Restored from v1: video thumbnails come from an async ffmpeg
-            // job in cache.sh and can take a while to land on first run, so
-            // give them a lot more patience than static images.
             property int maxRetries: isVideo ? 20 : 6
             width: list.tileWidth
             height: 500
-
-            Behavior on width {
-                NumberAnimation {
-                    duration: 50
-                    easing.type: Easing.OutCubic
-                }
-            }
 
             Text {
                 id: alt
@@ -239,13 +193,9 @@ PanelWindow {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
-                // ENABLED CACHING for instant subsequent opens
                 cache: true
-                // Smooth only near the focused tile — clean where it matters,
-                // cheap for far-off tiles that are scrolling past.
-                smooth: nearFocus
+                smooth: delegateItem.nearFocus
                 source: main.getThumbnailSource(fileName)
-                // Oversample a bit so crop-scaling doesn't alias at decode time
                 sourceSize.width: width * 1.25
                 sourceSize.height: height * 1.25
 
@@ -257,25 +207,17 @@ PanelWindow {
                     repeat: false
                     onTriggered: {
                         if (img.status !== Image.Ready) {
-                            // Restored from v1: reassigning the same URL string
-                            // is a no-op in Qt (setSource short-circuits when
-                            // the new source equals the current one), so the
-                            // source has to be cleared first and reassigned on
-                            // the next tick to actually force a re-request.
                             let s = img.source;
                             img.source = "";
                             Qt.callLater(function() {
                                 img.source = s;
                             });
-                            retryCount++;
-                            if (retryCount < maxRetries) {
-                                // Back off instead of hammering every 200ms —
-                                // ffmpeg-generated video thumbnails can take
-                                // a while to land on first run.
+                            delegateItem.retryCount++;
+                            if (delegateItem.retryCount < delegateItem.maxRetries) {
                                 retryTimer.interval = Math.min(retryTimer.interval * 1.5, 2000);
                                 retryTimer.start();
                             } else {
-                                alt.text = isVideo ? "🎬" : "✖";
+                                alt.text = delegateItem.isVideo ? "🎬" : "✖";
                             }
                         }
                     }
@@ -284,12 +226,12 @@ PanelWindow {
                 onStatusChanged: {
                     if (status === Image.Ready) {
                         alt.text = "";
-                        retryCount = 0;
+                        delegateItem.retryCount = 0;
                     } else if (status === Image.Error) {
-                        if (retryCount < maxRetries) {
+                        if (delegateItem.retryCount < delegateItem.maxRetries) {
                             retryTimer.start();
                         } else {
-                            alt.text = isVideo ? "🎬" : "✖";
+                            alt.text = delegateItem.isVideo ? "🎬" : "✖";
                         }
                     }
                 }
@@ -306,7 +248,7 @@ PanelWindow {
                 border.width: 1
                 border.color: "#44ffffff"
                 z: 20
-                visible: isVideo && img.status === Image.Ready
+                visible: delegateItem.isVideo && img.status === Image.Ready
 
                 Text {
                     anchors.centerIn: parent
@@ -321,7 +263,7 @@ PanelWindow {
             Rectangle {
                 id: border
                 z: 10
-                visible: parent.active
+                visible: delegateItem.isCurrent
                 width: list.tileWidth
                 height: 500
                 color: "transparent"
@@ -333,36 +275,26 @@ PanelWindow {
             MouseArea {
                 anchors.fill: parent
                 onClicked: {
-                    list.selectedIndex = index;
-                    list.activateCurrent();
-                }
-                onWheel: function (wheel) {
-                    list.contentX = list.clampX(list.contentX - wheel.angleDelta.y * 2);
-                    wheel.accepted = false;
+                    if (list.currentIndex === index) {
+                        list.activateCurrent();
+                    } else {
+                        list.currentIndex = index;
+                    }
                 }
             }
         }
 
         Keys.onPressed: function (event) {
-            const step = 1;
             const big = configs.number_of_pictures;
 
             if (event.key === Qt.Key_L || event.key === Qt.Key_Right) {
-                anim.v = main.speed;
-                selectedIndex = clampIndex(selectedIndex + step);
-                ensureVisibleAnimated(selectedIndex);
+                incrementCurrentIndex();
             } else if (event.key === Qt.Key_H || event.key === Qt.Key_Left) {
-                anim.v = main.speed;
-                selectedIndex = clampIndex(selectedIndex - step);
-                ensureVisibleAnimated(selectedIndex);
+                decrementCurrentIndex();
             } else if (event.key === Qt.Key_U) {
-                anim.v = main.speed * big;
-                selectedIndex = clampIndex(selectedIndex + big);
-                ensureVisibleAnimated(selectedIndex);
+                currentIndex = clampIndex(currentIndex + big);
             } else if (event.key === Qt.Key_D) {
-                anim.v = main.speed * big;
-                selectedIndex = clampIndex(selectedIndex - big);
-                ensureVisibleAnimated(selectedIndex);
+                currentIndex = clampIndex(currentIndex - big);
             } else if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) {
                 activateCurrent();
             } else if (event.key === Qt.Key_Escape) {
