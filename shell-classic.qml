@@ -222,7 +222,7 @@ PanelWindow {
                 asynchronous: true
                 // ENABLED CACHING for instant subsequent opens
                 cache: true
-                smooth: false // Use false for higher rendering throughput during fast scroll
+                smooth: true // Use false for higher rendering throughput during fast scroll
                 source: main.getThumbnailSource(fileName)
                 sourceSize.width: width
                 sourceSize.height: height
