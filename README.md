@@ -28,6 +28,24 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 https://github.com/user-attachments/assets/5d9b33d8-4af2-49c8-ae8b-fc3031d17e4d
 
 > **Note:** In the demo video, there's a noticeable delay after selecting a video before it gets applied. This was caused by some module issues during recording — on the same config, it's currently snappy. Actual performance may vary depending on your system.
+
+---
+
+## 🎯 Who is this for?
+
+HyprQuickPaper is a picker, not a platform: no daemon, no database, no wallpaper
+management — it hands your choice to whatever backend you already run.
+
+**This is for you if:**
+- You already have a rice and just want a fast keybound picker
+- You're happy using a layout as-is, or forking one and tweaking the QML yourself
+- You don't want a background daemon running when you're not picking wallpapers
+
+**Not for you if you want:**
+- Full library management, Wallpaper Engine Scenes, auto theming, or scheduling
+
+If that's what you need, check out [skwd-wall](https://github.com/liixini/skwd-wall) — a much bigger wallpaper engine that covers all of that. Different tool, different job.
+
 ---
 
 ## ✨ Features
