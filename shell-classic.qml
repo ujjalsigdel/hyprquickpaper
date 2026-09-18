@@ -42,7 +42,7 @@ PanelWindow {
         if (!fileName) return "";
         let basePath = configs.cache_path.replace("~", Quickshell.env("HOME"));
         if (!basePath.endsWith("/")) basePath += "/";
-        
+
         let thumbnailFileName = fileName;
         if (isVideoFile(fileName)) {
             const lastDot = fileName.lastIndexOf(".");
@@ -103,13 +103,18 @@ PanelWindow {
         orientation: ListView.Horizontal
         spacing: 4
         clip: true
-        // Prefetch adjacent tiles into memory for smooth panning
-        cacheBuffer: width * 1.5
+        // Tighter prefetch — enough for smooth panning without holding too
+        // many decoded tiles in memory at once.
+        cacheBuffer: width * 0.5
 
         property int selectedIndex: 0
         // Math.max(1, ...) guards against a 0 or unset number_of_pictures
         // in config.json dividing by zero and blowing up tileWidth.
         property real tileWidth: width / Math.max(1, configs.number_of_pictures) - 10
+
+        // When the total content is narrower than the viewport, pad both
+        // sides so the strip can be centered instead of hugging the left.
+        property real sidePadding: Math.max(0, (width - contentWidth) / 2)
 
         function centerOnIndex(idx) {
             selectedIndex = idx;
@@ -169,7 +174,7 @@ PanelWindow {
 
         function ensureVisibleAnimated(i) {
             const step = tileWidth + spacing;
-            const itemStart = i * step;
+            const itemStart = sidePadding + i * step;
             const itemEnd = itemStart + tileWidth + 20;
 
             if (itemStart < contentX)
@@ -190,10 +195,24 @@ PanelWindow {
             anim.v = main.speed;
         }
 
+        header: Item {
+            width: list.sidePadding
+            height: 1
+        }
+
+        footer: Item {
+            width: list.sidePadding
+            height: 1
+        }
+
         delegate: Item {
             property bool active: index === list.selectedIndex
             property bool isVideo: main.isVideoFile(fileName)
+            property bool nearFocus: Math.abs(index - list.selectedIndex) <= 3
             property int retryCount: 0
+            // Restored from v1: video thumbnails come from an async ffmpeg
+            // job in cache.sh and can take a while to land on first run, so
+            // give them a lot more patience than static images.
             property int maxRetries: isVideo ? 20 : 6
             width: list.tileWidth
             height: 500
@@ -214,7 +233,7 @@ PanelWindow {
                 transform: Shear { xFactor: -0.25 }
                 visible: img.status !== Image.Ready
             }
-            
+
             Image {
                 id: img
                 anchors.fill: parent
@@ -222,10 +241,13 @@ PanelWindow {
                 asynchronous: true
                 // ENABLED CACHING for instant subsequent opens
                 cache: true
-                smooth: true // Use false for higher rendering throughput during fast scroll
+                // Smooth only near the focused tile — clean where it matters,
+                // cheap for far-off tiles that are scrolling past.
+                smooth: nearFocus
                 source: main.getThumbnailSource(fileName)
-                sourceSize.width: width
-                sourceSize.height: height
+                // Oversample a bit so crop-scaling doesn't alias at decode time
+                sourceSize.width: width * 1.25
+                sourceSize.height: height * 1.25
 
                 transform: Shear { xFactor: -0.25 }
 
@@ -235,10 +257,13 @@ PanelWindow {
                     repeat: false
                     onTriggered: {
                         if (img.status !== Image.Ready) {
+                            // Restored from v1: reassigning the same URL string
+                            // is a no-op in Qt (setSource short-circuits when
+                            // the new source equals the current one), so the
+                            // source has to be cleared first and reassigned on
+                            // the next tick to actually force a re-request.
                             let s = img.source;
                             img.source = "";
-                            // Defer reassignment to the next event-loop tick
-                            // rather than doing it synchronously inline.
                             Qt.callLater(function() {
                                 img.source = s;
                             });
@@ -269,7 +294,7 @@ PanelWindow {
                     }
                 }
             }
-            
+
             Rectangle {
                 anchors.top: parent.top
                 anchors.left: parent.left
@@ -282,7 +307,7 @@ PanelWindow {
                 border.color: "#44ffffff"
                 z: 20
                 visible: isVideo && img.status === Image.Ready
-                
+
                 Text {
                     anchors.centerIn: parent
                     text: "VIDEO"
