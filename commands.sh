@@ -99,7 +99,9 @@ echo "$WALLPAPER" > "$HOME/.cache/hyprquickpaper/current_wallpaper"
 #
 # For video wallpapers we copy the cached *thumbnail* (a still jpg)
 # rather than the raw video file, since anything reading stable_copy_path
-# almost certainly expects a static image.
+# almost certainly expects a static image. Prefers the HQ still
+# (.hq.jpg) when available, since consumers of this path usually care
+# more about quality than decode speed.
 STABLE_COPY_PATH=$(jq -r '.stable_copy_path // ""' "$CONFIG")
 if [ -n "$STABLE_COPY_PATH" ]; then
     EXPANDED_COPY_PATH="${STABLE_COPY_PATH/#\~/$HOME}"
@@ -110,10 +112,13 @@ if [ -n "$STABLE_COPY_PATH" ]; then
         CACHE_PATH="${CACHE_PATH%/}/"
         FILENAME_NOEXT="$(basename "$WALLPAPER")"
         FILENAME_NOEXT="${FILENAME_NOEXT%.*}"
-        THUMB="${CACHE_PATH}${FILENAME_NOEXT}.jpg"
+        HQ_THUMB="${CACHE_PATH}${FILENAME_NOEXT}.hq.jpg"
+        SMALL_THUMB="${CACHE_PATH}${FILENAME_NOEXT}.jpg"
 
-        if [ -f "$THUMB" ]; then
-            cp "$THUMB" "$EXPANDED_COPY_PATH"
+        if [ -f "$HQ_THUMB" ]; then
+            cp "$HQ_THUMB" "$EXPANDED_COPY_PATH"
+        elif [ -f "$SMALL_THUMB" ]; then
+            cp "$SMALL_THUMB" "$EXPANDED_COPY_PATH"
         else
             echo "hyprquickpaper: no cached thumbnail found for '$WALLPAPER', skipping stable_copy_path update" >&2
         fi

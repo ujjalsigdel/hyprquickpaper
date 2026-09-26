@@ -72,30 +72,48 @@ if command -v ffmpeg &>/dev/null; then
         filename=$(basename "$video")
         filename_noext="${filename%.*}"
         out="${cache_path}${filename_noext}.jpg"
+        out_hq="${cache_path}${filename_noext}.hq.jpg"
 
-        if [[ -f "$out" ]]; then
+        # Regenerate if EITHER file is missing. Both derive from the
+        # same extracted frame in one ffmpeg pass, so a video is only
+        # ever decoded once per cache generation.
+        if [[ -f "$out" && -f "$out_hq" ]]; then
             continue
         fi
 
         echo "Generating thumbnail for video: $filename"
 
         (
-            # Try the configured seek point first (video_thumbnail_interval,
-            # default 5s), then 1s in if the clip is shorter than that,
-            # then finally without any seek at all.
+            # Extract one frame at (up to) 3840px wide, near-lossless jpg.
+            # This is the expensive step; everything else derives from it.
+            # ffmpeg is invoked with three fallback seek points, same as
+            # before, so short clips and odd streams still work.
             ffmpeg -i "$video" -ss "$video_thumbnail_interval" -vframes 1 \
-                -vf "scale=500:-1:flags=lanczos" -q:v 2 "$out" -y 2>/dev/null
+                -vf "scale='min(3840,iw)':-2:flags=lanczos" -q:v 2 \
+                "$out_hq" -y 2>/dev/null
 
-            if [ ! -f "$out" ]; then
+            if [ ! -f "$out_hq" ]; then
                 ffmpeg -i "$video" -ss 1 -vframes 1 \
-                    -vf "scale=500:-1:flags=lanczos" -q:v 2 "$out" -y 2>/dev/null
+                    -vf "scale='min(3840,iw)':-2:flags=lanczos" -q:v 2 \
+                    "$out_hq" -y 2>/dev/null
             fi
 
-            if [ ! -f "$out" ]; then
-                ffmpeg -i "$video" -vframes 1 -q:v 2 "$out" -y 2>/dev/null
+            if [ ! -f "$out_hq" ]; then
+                ffmpeg -i "$video" -vframes 1 \
+                    -vf "scale='min(3840,iw)':-2:flags=lanczos" -q:v 2 \
+                    "$out_hq" -y 2>/dev/null
             fi
 
-            if [ ! -f "$out" ]; then
+            if [ -f "$out_hq" ]; then
+                # Small, fast-to-decode thumbnail for the picker cards.
+                # Height 500 matches the image-wallpaper thumbnails, so
+                # the grid looks consistent across both media types.
+                if command -v magick &>/dev/null; then
+                    magick "$out_hq" -thumbnail x500 -strip -quality 85 "$out" 2>/dev/null
+                else
+                    convert "$out_hq" -thumbnail x500 -strip -quality 85 "$out" 2>/dev/null
+                fi
+            else
                 echo "Warning: Could not generate thumbnail for $filename"
             fi
         ) &
