@@ -11,12 +11,22 @@ PanelWindow {
     id: main
     implicitHeight: Screen.height
     implicitWidth: Screen.width
-    color: "#05070a"
+    color: "transparent"
 
     property string currentImagePath: ""
     property bool bgToggle: false
     property string searchQuery: ""
     property int selectedIndex: 0
+
+    property bool contentRevealed: false
+
+    readonly property int cardSourceW: 960
+    readonly property int cardSourceH: 540
+
+    readonly property var defaultVideoExtensions: ["mp4", "webm", "mov", "avi", "mkv", "gif", "m4v", "flv", "wmv", "mpeg", "3gp"]
+    readonly property var videoExtensions: (configs.video_extensions && configs.video_extensions.length > 0)
+        ? configs.video_extensions
+        : defaultVideoExtensions
 
     anchors { top: true; bottom: true; left: true; right: true }
     aboveWindows: true
@@ -41,6 +51,7 @@ PanelWindow {
             property string cache_path
             property int number_of_pictures
             property string border_color
+            property var video_extensions: []
         }
     }
 
@@ -54,14 +65,79 @@ PanelWindow {
         id: folderModel
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
-        nameFilters: searchQuery.length > 0
-            ? ["*" + searchQuery + "*.png", "*" + searchQuery + "*.jpg", "*" + searchQuery + "*.jpeg"]
-            : ["*.png", "*.jpg", "*.jpeg"]
+        nameFilters: {
+            const base = ["png", "jpg", "jpeg"].concat(main.videoExtensions)
+            if (main.searchQuery.length > 0) {
+                return base.map(function(ext) { return "*" + main.searchQuery + "*." + ext })
+            }
+            return base.map(function(ext) { return "*." + ext })
+        }
         sortField: FolderListModel.Name
         onCountChanged: {
             if (count > 0 && selectedIndex >= count) selectedIndex = 0
             initTimer.restart()
         }
+    }
+
+    function isVideoFile(fileName) {
+        if (!fileName) return false;
+        const lower = fileName.toLowerCase();
+        for (let i = 0; i < videoExtensions.length; i++) {
+            if (lower.endsWith("." + videoExtensions[i])) return true;
+        }
+        return false;
+    }
+
+    function normalizedPath(rawPath) {
+        let p = rawPath.replace("~", Quickshell.env("HOME"))
+        if (!p.endsWith("/")) p += "/"
+        return p
+    }
+
+    // Small cache thumbnail for cards and reflections. Videos map to
+    // their cached .jpg, since QML Image cannot render .mp4/.webm.
+    function getThumbnailSource(fileName) {
+        if (!fileName) return "";
+        let thumbnailFileName = fileName;
+        if (isVideoFile(fileName)) {
+            const lastDot = fileName.lastIndexOf(".");
+            if (lastDot > 0) {
+                thumbnailFileName = fileName.substring(0, lastDot) + ".jpg";
+            }
+        }
+        return "file://" + normalizedPath(configs.cache_path) + thumbnailFileName;
+    }
+
+    // Native-resolution still for the full-screen background. Only used
+    // for videos — images use their original file from wallpaper_path,
+    // which is already full quality.
+    function getVideoPreviewSource(fileName) {
+        if (!fileName) return "";
+        const lastDot = fileName.lastIndexOf(".");
+        let baseName = fileName;
+        if (lastDot > 0) baseName = fileName.substring(0, lastDot);
+        return "file://" + normalizedPath(configs.cache_path) + baseName + ".hq.jpg";
+    }
+
+    function getFullQualitySource(fileName) {
+        if (!fileName) return "";
+        if (isVideoFile(fileName)) return getVideoPreviewSource(fileName);
+        return "file://" + normalizedPath(configs.wallpaper_path) + fileName;
+    }
+
+    function maybeReveal() {
+        if (contentRevealed) return
+        contentRevealed = true
+        revealFallback.stop()
+        stage.forceActiveFocus()
+    }
+
+    Timer {
+        id: revealFallback
+        interval: 800
+        repeat: false
+        running: true
+        onTriggered: main.maybeReveal()
     }
 
     property bool didInitialSync: false
@@ -102,8 +178,7 @@ PanelWindow {
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(main.selectedIndex, "fileName")
-        const wallpaperDir = configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
-        const fullPath = "file://" + (wallpaperDir.endsWith("/") ? wallpaperDir : wallpaperDir + "/") + fileName
+        const fullPath = getFullQualitySource(fileName)
         currentImagePath = fullPath
         if (!bgToggle) {
             bgImageB.source = fullPath
@@ -116,327 +191,360 @@ PanelWindow {
 
     onSelectedIndexChanged: updateBackground()
 
-    // -----------------------------------------------------
-    // 1. CLEAR HIGH-QUALITY BACKGROUND SYSTEM
-    // -----------------------------------------------------
     Item {
+        id: contentRoot
         anchors.fill: parent
-        z: 0
-
-        Image {
-            id: bgImageA
-            anchors.fill: parent
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: true
-            sourceSize.width: Screen.width
-            sourceSize.height: Screen.height
-            opacity: bgToggle ? 0.0 : 1.0
-            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
-        }
-
-        Image {
-            id: bgImageB
-            anchors.fill: parent
-            fillMode: Image.PreserveAspectCrop
-            asynchronous: true
-            cache: true
-            sourceSize.width: Screen.width
-            sourceSize.height: Screen.height
-            opacity: bgToggle ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
+        opacity: main.contentRevealed ? 1.0 : 0.0
+        Behavior on opacity {
+            NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
         }
 
         Rectangle {
             anchors.fill: parent
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: "#22000000" }
-                GradientStop { position: 1.0; color: "#55000000" }
+            color: "#05070a"
+            z: -1
+        }
+
+        // 1. CLEAR HIGH-QUALITY BACKGROUND SYSTEM
+        Item {
+            anchors.fill: parent
+            z: 0
+
+            Image {
+                id: bgImageA
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+                sourceSize.width: Screen.width
+                sourceSize.height: Screen.height
+                opacity: bgToggle ? 0.0 : 1.0
+                Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
+                onStatusChanged: if (status === Image.Ready) main.maybeReveal()
+            }
+
+            Image {
+                id: bgImageB
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+                sourceSize.width: Screen.width
+                sourceSize.height: Screen.height
+                opacity: bgToggle ? 1.0 : 0.0
+                Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.InOutQuad } }
+                onStatusChanged: if (status === Image.Ready) main.maybeReveal()
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "#22000000" }
+                    GradientStop { position: 1.0; color: "#55000000" }
+                }
             }
         }
-    }
 
-    // -----------------------------------------------------
-    // 2. TIERED 3D FLOATING CLOUD (REPEATER) - CENTER ONLY REFLECTIONS
-    // -----------------------------------------------------
-    Item {
-        id: stage
-        anchors.fill: parent
-        focus: true
-        z: 10
+        // 2. TIERED 3D FLOATING CLOUD — CENTER REFLECTION ONLY
+        Item {
+            id: stage
+            anchors.fill: parent
+            focus: true
+            z: 10
 
-        Repeater {
-            model: folderModel
+            Repeater {
+                model: folderModel
 
-            delegate: Item {
-                id: cardDelegate
+                delegate: Item {
+                    id: cardDelegate
 
-                property string safeFileName: typeof fileName !== "undefined" ? fileName : folderModel.get(index, "fileName")
+                    property string safeFileName: typeof fileName !== "undefined" ? fileName : folderModel.get(index, "fileName")
+                    property bool isVideo: main.isVideoFile(safeFileName)
+                    property bool imgReady: false
 
-                property int diff: {
-                    let d = index - main.selectedIndex
-                    let half = folderModel.count / 2
-                    if (d > half) d -= folderModel.count
-                    if (d < -half) d += folderModel.count
-                    return d
-                }
-
-                property real absDiff: Math.abs(diff)
-
-                visible: absDiff <= 8
-
-                property real targetWidth: {
-                    if (absDiff === 0) return 640
-                    if (absDiff === 1) return 420
-                    if (absDiff === 2) return 280
-                    return 180
-                }
-
-                property real targetHeight: {
-                    if (absDiff === 0) return 360
-                    if (absDiff === 1) return 236
-                    if (absDiff === 2) return 157
-                    return 101
-                }
-
-                property real targetX: {
-                    if (diff === 0) return (main.width - targetWidth) / 2
-                    if (absDiff === 1) return (main.width / 2) + (diff * 460) - (targetWidth / 2)
-                    if (absDiff === 2) return (main.width / 2) + (Math.sign(diff) * 740) - (targetWidth / 2)
-                    return (main.width / 2) + (diff * 200) - (targetWidth / 2)
-                }
-
-                property real targetY: {
-                    if (absDiff === 0) return main.height * 0.45
-                    if (absDiff === 1) return main.height * 0.35
-                    if (absDiff === 2) return main.height * 0.28
-                    return main.height * 0.05
-                }
-
-                property int targetZ: 100 - absDiff
-                property real targetOpacity: {
-                    if (absDiff === 0) return 1.0
-                    if (absDiff === 1) return 0.75
-                    if (absDiff === 2) return 0.40
-                    return 0.25
-                }
-
-                x: targetX
-                y: targetY
-                width: targetWidth
-                height: targetHeight
-                z: targetZ
-                opacity: targetOpacity
-
-                Behavior on x { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
-                Behavior on y { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
-                Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
-                Behavior on height { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
-                Behavior on opacity { NumberAnimation { duration: 400 } }
-                Behavior on z { NumberAnimation { duration: 400 } }
-
-                Rectangle {
-                    id: cardFrame
-                    anchors.fill: parent
-                    radius: {
-                        if (absDiff === 0) return 28
-                        if (absDiff === 1) return 22
-                        if (absDiff === 2) return 18
-                        return 16
+                    property int diff: {
+                        let d = index - main.selectedIndex
+                        let half = folderModel.count / 2
+                        if (d > half) d -= folderModel.count
+                        if (d < -half) d += folderModel.count
+                        return d
                     }
-                    color: "#0a0c10"
+
+                    property real absDiff: Math.abs(diff)
+
+                    visible: absDiff <= 8
+
+                    property real targetWidth: {
+                        if (absDiff === 0) return 640
+                        if (absDiff === 1) return 420
+                        if (absDiff === 2) return 280
+                        return 180
+                    }
+
+                    property real targetHeight: {
+                        if (absDiff === 0) return 360
+                        if (absDiff === 1) return 236
+                        if (absDiff === 2) return 157
+                        return 101
+                    }
+
+                    property real targetX: {
+                        if (diff === 0) return (main.width - targetWidth) / 2
+                        if (absDiff === 1) return (main.width / 2) + (diff * 460) - (targetWidth / 2)
+                        if (absDiff === 2) return (main.width / 2) + (Math.sign(diff) * 740) - (targetWidth / 2)
+                        return (main.width / 2) + (diff * 200) - (targetWidth / 2)
+                    }
+
+                    property real targetY: {
+                        if (absDiff === 0) return main.height * 0.45
+                        if (absDiff === 1) return main.height * 0.35
+                        if (absDiff === 2) return main.height * 0.28
+                        return main.height * 0.05
+                    }
+
+                    property int targetZ: 100 - absDiff
+                    property real targetOpacity: {
+                        if (absDiff === 0) return 1.0
+                        if (absDiff === 1) return 0.75
+                        if (absDiff === 2) return 0.40
+                        return 0.25
+                    }
+
+                    x: targetX
+                    y: targetY
+                    width: targetWidth
+                    height: targetHeight
+                    z: targetZ
+                    opacity: targetOpacity
+
+                    Behavior on x { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
+                    Behavior on y { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
+                    Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
+                    Behavior on height { NumberAnimation { duration: 400; easing.type: Easing.OutQuart } }
+                    Behavior on opacity { NumberAnimation { duration: 400 } }
+                    Behavior on z { NumberAnimation { duration: 400 } }
 
                     Rectangle {
-                        id: cardMask
+                        id: cardFrame
                         anchors.fill: parent
-                        radius: cardFrame.radius
-                        visible: false
-                    }
+                        radius: {
+                            if (absDiff === 0) return 28
+                            if (absDiff === 1) return 22
+                            if (absDiff === 2) return 18
+                            return 16
+                        }
+                        color: "#0a0c10"
 
-                    Item {
-                        id: cardContent
-                        anchors.fill: parent
-                        visible: false
-
-                        Loader {
-                            id: imgLoader
+                        Rectangle {
+                            id: cardMask
                             anchors.fill: parent
-                            active: absDiff <= 4
-                            asynchronous: true
-                            sourceComponent: Item {
+                            radius: cardFrame.radius
+                            visible: false
+                        }
+
+                        Item {
+                            id: cardContent
+                            anchors.fill: parent
+                            visible: false
+
+                            Loader {
+                                id: imgLoader
                                 anchors.fill: parent
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "Loading..."
-                                    color: "#888"
-                                    font.pixelSize: 12
-                                    visible: cardImg.status !== Image.Ready
-                                }
-
-                                Image {
-                                    id: cardImg
+                                active: absDiff <= 10
+                                asynchronous: true
+                                sourceComponent: Item {
                                     anchors.fill: parent
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
-                                    cache: true
 
-                                    source: {
-                                        if (!cardDelegate.safeFileName) return "";
-                                        let basePath = configs.cache_path.replace("~", Quickshell.env("HOME"));
-                                        if (!basePath.endsWith("/")) basePath += "/";
-                                        return "file://" + basePath + cardDelegate.safeFileName;
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "Loading..."
+                                        color: "#888"
+                                        font.pixelSize: 12
+                                        visible: cardImg.status !== Image.Ready
                                     }
 
-                                    sourceSize.width: cardDelegate.targetWidth * 1.5
-                                    sourceSize.height: cardDelegate.targetHeight * 1.5
+                                    Image {
+                                        id: cardImg
+                                        anchors.fill: parent
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        cache: true
 
-                                    Timer {
-                                        id: retryTimer
-                                        interval: 1000
-                                        repeat: false
-                                        onTriggered: {
-                                            let s = cardImg.source
-                                            cardImg.source = ""
-                                            cardImg.source = s
+                                        source: main.getThumbnailSource(cardDelegate.safeFileName)
+
+                                        sourceSize.width: main.cardSourceW
+                                        sourceSize.height: main.cardSourceH
+
+                                        Timer {
+                                            id: retryTimer
+                                            interval: 1000
+                                            repeat: false
+                                            onTriggered: {
+                                                let s = cardImg.source
+                                                cardImg.source = ""
+                                                cardImg.source = s
+                                            }
+                                        }
+
+                                        onStatusChanged: {
+                                            if (status === Image.Ready) {
+                                                cardDelegate.imgReady = true
+                                            } else if (status === Image.Error) {
+                                                cardDelegate.imgReady = false
+                                                retryTimer.start()
+                                            } else {
+                                                cardDelegate.imgReady = false
+                                            }
                                         }
                                     }
+                                }
+                            }
 
-                                    onStatusChanged: {
-                                        if (status === Image.Error) retryTimer.start()
-                                    }
+                            Rectangle {
+                                anchors.fill: parent
+                                color: "#000000"
+                                opacity: absDiff >= 3 ? 0.3 : 0.0
+                            }
+                        }
+
+                        OpacityMask {
+                            anchors.fill: parent
+                            source: cardContent
+                            maskSource: cardMask
+                        }
+
+                        // VIDEO badge — outside cardContent so its visible
+                        // binding fires as soon as the image loads, instead
+                        // of waiting for the OpacityMask's ShaderEffectSource
+                        // to re-capture the texture.
+                        Rectangle {
+                            id: videoBadge
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.margins: Math.round(cardFrame.radius * 0.5)
+                            width: 46
+                            height: 18
+                            radius: 4
+                            color: "#cc000000"
+                            border.width: 1
+                            border.color: "#44ffffff"
+                            z: 20
+                            visible: cardDelegate.isVideo && cardDelegate.imgReady
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "VIDEO"
+                                color: "#ff6666"
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                                font.letterSpacing: 1
+                            }
+                        }
+                    }
+
+                    // -----------------------------------------------------
+                    // REFLECTION - ONLY ON CENTER CARD (absDiff === 0)
+                    // -----------------------------------------------------
+                    Item {
+                        id: reflectionContainer
+                        anchors.top: cardFrame.bottom
+                        anchors.left: cardFrame.left
+                        anchors.right: cardFrame.right
+                        height: cardFrame.height * 0.6
+                        visible: absDiff === 0
+                        opacity: 0.4
+
+                        Item {
+                            id: reflectionContent
+                            anchors.fill: parent
+                            visible: false
+
+                            Image {
+                                id: reflectionImg
+                                width: parent.width
+                                height: cardFrame.height
+                                anchors.top: parent.top
+                                source: main.getThumbnailSource(cardDelegate.safeFileName)
+                                fillMode: Image.PreserveAspectCrop
+                                asynchronous: true
+                                cache: true
+                                transform: Scale { origin.x: width/2; origin.y: height/2; yScale: -1 }
+
+                                sourceSize.width: main.cardSourceW
+                                sourceSize.height: main.cardSourceH
+                            }
+                        }
+
+                        Item {
+                            id: reflectionMask
+                            anchors.fill: parent
+                            visible: false
+
+                            Rectangle {
+                                width: parent.width
+                                height: parent.height
+                                radius: cardFrame.radius
+                                color: "black"
+                            }
+                        }
+
+                        OpacityMask {
+                            id: maskedReflection
+                            anchors.fill: parent
+                            source: reflectionContent
+                            maskSource: reflectionMask
+                        }
+
+                        Item {
+                            anchors.fill: parent
+
+                            Loader {
+                                anchors.fill: parent
+                                sourceComponent: maskedReflection
+                                asynchronous: false
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "#00000000" }
+                                    GradientStop { position: 0.5; color: "#00000000" }
+                                    GradientStop { position: 0.8; color: "#33000000" }
+                                    GradientStop { position: 0.95; color: "#88000000" }
+                                    GradientStop { position: 1.0; color: "#dd000000" }
                                 }
                             }
                         }
-
-                        Rectangle {
-                            anchors.fill: parent
-                            color: "#000000"
-                            opacity: absDiff >= 3 ? 0.3 : 0.0
-                        }
                     }
 
-                    OpacityMask {
+                    MouseArea {
                         anchors.fill: parent
-                        source: cardContent
-                        maskSource: cardMask
-                    }
-                }
-
-                // -----------------------------------------------------
-                // REFLECTION - ONLY ON CENTER CARD (absDiff === 0)
-                // WITH PROPER CURVED CORNERS
-                // -----------------------------------------------------
-                Item {
-                    id: reflectionContainer
-                    anchors.top: cardFrame.bottom
-                    anchors.left: cardFrame.left
-                    anchors.right: cardFrame.right
-                    height: cardFrame.height * 0.6
-                    visible: absDiff === 0  // ONLY center card
-                    opacity: 0.4
-
-                    // Step 1: The reflected image
-                    Item {
-                        id: reflectionContent
-                        anchors.fill: parent
-                        visible: false
-
-                        Image {
-                            id: reflectionImg
-                            width: parent.width
-                            height: cardFrame.height
-                            anchors.top: parent.top
-                            source: {
-                                if (!cardDelegate.safeFileName) return "";
-                                let basePath = configs.cache_path.replace("~", Quickshell.env("HOME"));
-                                if (!basePath.endsWith("/")) basePath += "/";
-                                return "file://" + basePath + cardDelegate.safeFileName;
-                            }
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
-                            transform: Scale { origin.x: width/2; origin.y: height/2; yScale: -1 }
-                            
-                            sourceSize.width: cardDelegate.targetWidth * 1.5
-                            sourceSize.height: cardDelegate.targetHeight * 1.5
-                        }
-                    }
-
-                    // Step 2: Mask with curved corners on ALL sides
-                    Item {
-                        id: reflectionMask
-                        anchors.fill: parent
-                        visible: false
-                        
-                        Rectangle {
-                            width: parent.width
-                            height: parent.height
-                            radius: cardFrame.radius
-                            color: "black"
-                        }
-                    }
-
-                    // Step 3: Apply mask to get curved reflection
-                    OpacityMask {
-                        id: maskedReflection
-                        anchors.fill: parent
-                        source: reflectionContent
-                        maskSource: reflectionMask
-                    }
-
-                    // Step 4: Stack the masked reflection with gradient on top
-                    Item {
-                        anchors.fill: parent
-                        
-                        // The masked reflection at bottom layer
-                        Loader {
-                            anchors.fill: parent
-                            sourceComponent: maskedReflection
-                            asynchronous: false
-                        }
-                        
-                        // Gradient overlay on top (darkens the bottom)
-                        Rectangle {
-                            anchors.fill: parent
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: "#00000000" }
-                                GradientStop { position: 0.5; color: "#00000000" }
-                                GradientStop { position: 0.8; color: "#33000000" }
-                                GradientStop { position: 0.95; color: "#88000000" }
-                                GradientStop { position: 1.0; color: "#dd000000" }
+                        onClicked: {
+                            stage.forceActiveFocus()
+                            if (main.selectedIndex === index) {
+                                main.activateCurrent()
+                            } else {
+                                main.selectedIndex = index
                             }
                         }
                     }
                 }
+            }
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        stage.forceActiveFocus()
-                        if (main.selectedIndex === index) {
-                            main.activateCurrent()
-                        } else {
-                            main.selectedIndex = index
-                        }
-                    }
+            Keys.onPressed: function (event) {
+                if (event.key === Qt.Key_L || event.key === Qt.Key_Right) {
+                    main.selectedIndex = (main.selectedIndex + 1) % folderModel.count
+                } else if (event.key === Qt.Key_H || event.key === Qt.Key_Left) {
+                    main.selectedIndex = (main.selectedIndex - 1 + folderModel.count) % folderModel.count
+                } else if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) {
+                    main.activateCurrent()
+                } else if (event.key === Qt.Key_Escape) {
+                    Qt.quit()
+                } else {
+                    return
                 }
+                event.accepted = true
             }
-        }
-
-        Keys.onPressed: function (event) {
-            if (event.key === Qt.Key_L || event.key === Qt.Key_Right) {
-                main.selectedIndex = (main.selectedIndex + 1) % folderModel.count
-            } else if (event.key === Qt.Key_H || event.key === Qt.Key_Left) {
-                main.selectedIndex = (main.selectedIndex - 1 + folderModel.count) % folderModel.count
-            } else if (event.key === Qt.Key_Space || event.key === Qt.Key_Return) {
-                main.activateCurrent()
-            } else if (event.key === Qt.Key_Escape) {
-                Qt.quit()
-            } else {
-                return
-            }
-            event.accepted = true
         }
     }
 
