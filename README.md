@@ -1,14 +1,14 @@
 # 🖼️ HyprQuickPaper
 
-A fast, themeable, keyboard-driven Wayland wallpaper picker built with **Quickshell** and **QML** for Hyprland (and any other `wlr-layer-shell` compositor). Pick a wallpaper with `h`/`l`, jump around with `u`/`d`, confirm with `Space`/`Enter`, bail with `Esc`.
+A fast, themeable, keyboard-driven Wayland wallpaper picker built with **Quickshell** and **QML** for Hyprland (and any other `wlr-layer-shell` compositor). Handles both static images and video wallpapers, across multiple layouts. Pick with `h`/`l`, jump around with `u`/`d`, confirm with `Space`/`Enter`, bail with `Esc`.
 
 Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hyprquickpaper), itself inspired by [ilyamiro's dots](https://github.com/ilyamiro/nixos-configuration). This fork is rebuilt to run on **any** Wayland wallpaper backend.
 
 > [!IMPORTANT]
-> **Before using:** Make sure `wallpaper_tool` in `config.json` matches your installed backend (`awww`, `hyprpaper`, `swaybg`, etc.), and the backend's daemon is running.  
+> **Before using:** Make sure `wallpaper_tool` in `config.json` matches your installed backend (`awww`, `hyprpaper`, `swaybg`, etc.), and the backend's daemon is running.
 > See the [Configuration Guide](docs/CONFIGURATION.md) for details.
 
-> For GNOME there is a separate GTK4 implementation:  
+> For GNOME there is a separate GTK4 implementation:
 > [hugo-sants/hyprquickpaper-gnome](https://github.com/hugo-sants/hyprquickpaper-gnome)
 
 ### Environment requirements
@@ -50,8 +50,8 @@ If that's what you need, check out [skwd-wall](https://github.com/liixini/skwd-w
 
 ## ✨ Features
 
-- **Multiple layout modes** — Bottom Dock, Coverflow, Hexacomb, Grid, and more.
-- **Video wallpapers** — `.mp4`/`.webm`/`.mov`/etc. play via `mpvpaper`, auto-thumbnailed with `ffmpeg`.
+- **Multiple layout modes** — Bottom Dock, Coverflow, Floating, Grid, Hexacomb, and more.
+- **Video wallpapers** — `.mp4`/`.webm`/`.mov`/etc. play via `mpvpaper`, auto-thumbnailed with `ffmpeg`. Supported in **every layout except Hexacomb**.
 - **Lossless background preview** — Renders the full-resolution image behind the dock.
 - **Automatic thumbnail cache** — Smooth scrolling for hundreds of wallpapers.
 - **Live config reload** — `config.json` changes apply immediately.
@@ -63,7 +63,7 @@ If that's what you need, check out [skwd-wall](https://github.com/liixini/skwd-w
 
 | Layout | Description |
 |--------|-------------|
-| **Classic List** *(default)*| Plain vertical/list (lightest on GPU) |
+| **Classic List** *(default)* | Plain vertical/list (lightest on GPU) |
 | **Bottom Dock**  | Sheared parallelogram deck along the bottom |
 | **Coverflow** | 3D perspective coverflow |
 | **Coverflow Clear** | Coverflow without blur |
@@ -74,7 +74,9 @@ If that's what you need, check out [skwd-wall](https://github.com/liixini/skwd-w
 | **Hexacomb** | Honeycomb grid (2D navigation) |
 | **Grid View** | A two-pane grid browser |
 
-See [Layout Gallery](docs/LAYOUTS.md) to get proper overview of all the layouts.
+*All layouts support video wallpapers except Hexacomb.*
+
+See [Layout Gallery](docs/LAYOUTS.md) to get a proper overview of all the layouts.
 
 ---
 
@@ -82,31 +84,29 @@ See [Layout Gallery](docs/LAYOUTS.md) to get proper overview of all the layouts.
 
 This project relies on two separate components working together:
 
-- **The UI (Quickshell):** The visual picker (`shell.qml`) that handles the card deck, animations, thumbnails, and keyboard navigation. 
-- **The Wallpaper Backend:** The background daemon (`awww`, `hyprpaper`, `swaybg`, etc.) that actually paints the image on your screen. 
+- **The UI (Quickshell):** The visual picker (`shell.qml`) that handles the card deck, animations, thumbnails, and keyboard navigation.
+- **The Wallpaper Backend:** The background daemon (`awww`, `hyprpaper`, `swaybg`, etc.) that actually paints the image on your screen.
 
-When you press `Enter`, the UI hands the chosen file to the `wallpaper_tool` defined in your `config.json`. 
+When you press `Enter`, the UI hands the chosen file to the `wallpaper_tool` defined in your `config.json`.
 > ⚠️ **Note:** Your backend daemon must be autostarted by your compositor (e.g., in `hyprland.conf`), not by this project. See [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do).
 
 ---
 
 ## 🎬 Video Wallpapers
 
-You can use video files (e.g., `.mp4`, `.webm`) alongside static images. **Currently supported in the Classic layout only (`shell-classic.qml`).**
+Video files (`.mp4`, `.webm`, `.mov`, etc.) work alongside static images in **every layout except Hexacomb**.
 
-- **How it works:** `cache.sh` generates a still thumbnail using `ffmpeg`, and the UI displays a **VIDEO** badge. When selected, the UI bypasses your static image backend and plays the video automatically via `mpvpaper` (muted and looping).
-- **Requirements:** `ffmpeg` (for thumbnails) and `mpvpaper` (for playback). *(Note: `mpvpaper` usually requires an AUR/source build).*
-- **Config:** Adjust `video_extensions` and `video_thumbnail_interval` in [Configuration](docs/CONFIGURATION.md).
-- **Porting to other layouts:** Copy `isVideoFile()`, `getThumbnailSource()`, and `videoExtensions` from `shell-classic.qml`. Add the video extensions to your layout's `nameFilters`, and copy the VIDEO badge `Rectangle` into the delegate. No bash changes are needed.
-
-Tip : you can use [mpvpaper-stop](https://github.com/pvtoari/mpvpaper-stop) to pause the wallpaper when it’s in background to save on resources and battery usage.
+- **How it works:** `cache.sh` uses `ffmpeg` to extract one high-quality frame from each video, then derives a small picker thumbnail from it. Cards show the thumbnail with a **VIDEO** badge, and layouts with a full-screen background preview show the HQ still. On selection, the UI bypasses your static image backend and plays the video via `mpvpaper` (muted, looping).
+- **Cache layout:** for each `foo.mp4` you get `foo.jpg` (picker thumbnail) and `foo.hq.jpg` (background preview still). Both regenerate automatically if deleted or missing.
+- **Requirements:** `ffmpeg` for thumbnails, `mpvpaper` for playback. *(mpvpaper usually requires an AUR/source build — `install.sh` prints instructions since it can't always install it for you.)*
+- **Config:** adjust `video_extensions` and `video_thumbnail_interval` in [Configuration](docs/CONFIGURATION.md).
+- **Saving resources:** [mpvpaper-stop](https://github.com/pvtoari/mpvpaper-stop) pauses playback when the wallpaper isn't visible — worth using on laptops.
 
 ---
 
 ## 📋 Dependencies
 
-`install.sh` automatically sets up dependencies.If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here. Also checkout [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
-
+`install.sh` automatically sets up dependencies. If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here. Also check out the [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
 
 - [Quickshell](https://quickshell.org) (`qs` / `quickshell`) — renders the whole UI
 - `jq` — parses `config.json`
@@ -163,7 +163,7 @@ Edit `config.json` — the **only required change** for most users:
 **Key fields:**
 - `wallpaper_tool` — Which backend to use (`awww`, `hyprpaper`, `swaybg`, etc.)
 - `wallpaper_path` — Your wallpaper folder
-- `video_extensions` — Video formats to support (Classic layout only)
+- `video_extensions` — Video formats to support
 
 See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend switching, video setup, and layout selection.
 
@@ -183,7 +183,7 @@ See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend s
 
 ---
 
-## 🛠️ Troubleshooting              
+## 🛠️ Troubleshooting
 
 If you encounter issues like a blank window on launch, missing thumbnails, or video playback errors, check out the full guide:
 
@@ -194,7 +194,7 @@ If you encounter issues like a blank window on launch, missing thumbnails, or vi
 ## 🧩 Customization ideas
 
 - Add more wallpaper formats: update the `find` filter in `cache.sh` and the `nameFilters` in whichever `shell-*.qml` you use to include `.webp` (or any other static image format).
-- Port video wallpaper support to a layout other than Classic — see [Video Wallpapers](#-video-wallpapers) for what to copy over.
+- Port video wallpaper support to Hexacomb — copy `isVideoFile()`, `getThumbnailSource()`, `getVideoPreviewSource()`, the `videoExtensions` property, and the VIDEO badge `Rectangle` from any existing layout.
 - Add a new wallpaper backend: add a `case` branch to `commands.sh`.
 - Full-desktop re-theming on every pick (pywal/wallust-style): `commands.sh` has a commented-out "run your own commands after every wallpaper change" section at the bottom — uncomment and adapt it to regenerate a colorscheme and reload whatever apps you theme (waybar, notifications, browser, etc.). It runs after the wallpaper is set regardless of which `wallpaper_tool` you use.
 - Add more layouts: copy an existing `shell-*.qml`, tweak it, and add the filename as an option in `shell.qml`.
