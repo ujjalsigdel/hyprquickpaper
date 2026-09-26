@@ -22,9 +22,14 @@ PanelWindow {
     property real cardH: 340
     property real centerScale: 1.15
     property real edgeScale: 0.55
-    property real gapPx: 20  // small, clearly visible constant gap between EVERY pair of cards
+    property real gapPx: 20
 
     property real skewFactor: -0.18
+
+    readonly property var defaultVideoExtensions: ["mp4", "webm", "mov", "avi", "mkv", "gif", "m4v", "flv", "wmv", "mpeg", "3gp"]
+    readonly property var videoExtensions: (configs.video_extensions && configs.video_extensions.length > 0)
+        ? configs.video_extensions
+        : defaultVideoExtensions
 
     function scaleForOffset(offset) {
         const a = Math.abs(offset);
@@ -51,6 +56,41 @@ PanelWindow {
             sum += stepBetween(i)
         }
         return n < 0 ? -sum : sum
+    }
+
+    function isVideoFile(fileName) {
+        if (!fileName) return false;
+        const lower = fileName.toLowerCase();
+        for (let i = 0; i < videoExtensions.length; i++) {
+            if (lower.endsWith("." + videoExtensions[i])) return true;
+        }
+        return false;
+    }
+
+    function normalizedPath(rawPath) {
+        let p = rawPath.replace("~", Quickshell.env("HOME"))
+        if (!p.endsWith("/")) p += "/"
+        return p
+    }
+
+    function getThumbnailSource(fileName) {
+        if (!fileName) return "";
+        let thumbnailFileName = fileName;
+        if (isVideoFile(fileName)) {
+            const lastDot = fileName.lastIndexOf(".");
+            if (lastDot > 0) {
+                thumbnailFileName = fileName.substring(0, lastDot) + ".jpg";
+            }
+        }
+        return "file://" + normalizedPath(configs.cache_path) + thumbnailFileName;
+    }
+
+    function getVideoPreviewSource(fileName) {
+        if (!fileName) return "";
+        const lastDot = fileName.lastIndexOf(".");
+        let baseName = fileName;
+        if (lastDot > 0) baseName = fileName.substring(0, lastDot);
+        return "file://" + normalizedPath(configs.cache_path) + baseName + ".hq.jpg";
     }
 
     anchors {
@@ -82,6 +122,7 @@ PanelWindow {
             property string cache_path
             property int number_of_pictures
             property string border_color
+            property var video_extensions: []
         }
     }
 
@@ -95,27 +136,22 @@ PanelWindow {
         id: folderModel
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
-        nameFilters: ["*.png", "*.jpg", "*.jpeg"]
+        nameFilters: ["png", "jpg", "jpeg"].concat(main.videoExtensions)
+            .map(function(ext) { return "*." + ext })
         sortField: FolderListModel.Name
-    }
-
-    // Normalizes a config path: expands ~ and guarantees a trailing
-    // slash, so direct string concatenation with a fileName never
-    // produces a broken "...folderimage.png" path.
-    function normalizedPath(rawPath) {
-        let p = rawPath.replace("~", Quickshell.env("HOME"))
-        if (!p.endsWith("/")) p += "/"
-        return p
     }
 
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(pathView.currentIndex, "fileName")
-        // Full-quality source for the background — wallpaper_path (the
-        // original folder), NOT cache_path. cache_path holds downscaled
-        // thumbnails generated for the small deck cards; reusing them
-        // here was why the background looked degraded.
-        const fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
+
+        let fullPath
+        if (isVideoFile(fileName)) {
+            fullPath = getVideoPreviewSource(fileName)
+        } else {
+            fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
+        }
+
         currentImagePath = fullPath
         if (!bgToggle) {
             bgImageB.source = fullPath
@@ -127,13 +163,12 @@ PanelWindow {
     }
 
     // -----------------------------------------------------
-    // CRISP, FULL-QUALITY BACKGROUND (matches reference: wallpaper
-    // shown clearly, only a soft fade at the very bottom edge so the
-    // dock stays legible — no blur, no desaturation, no glow blob)
+    // CRISP, FULL-QUALITY BACKGROUND
     // -----------------------------------------------------
     Item {
         id: backgroundLayer
         anchors.fill: parent
+        opacity: pathView.opacity
 
         Image {
             id: bgImageA
@@ -159,9 +194,6 @@ PanelWindow {
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
         }
 
-        // Soft fade at just the bottom edge, behind the dock, so cards
-        // stay readable against busy wallpapers — everything above
-        // that stays fully clear and undimmed, matching the reference.
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
@@ -182,16 +214,69 @@ PanelWindow {
         focus: true
         interactive: false
 
+        // Hidden until the current card's image is ready, then faded in.
+        // Prevents the brief "empty box + Loading..." frame on open.
+        opacity: 0
+        property bool hasRevealed: false
+        property bool currentImageReady: false
+
         model: folderModel
         pathItemCount: 11
         preferredHighlightBegin: 0.5
         preferredHighlightEnd: 0.5
 
-        onCurrentIndexChanged: updateBackground()
+        onCurrentIndexChanged: {
+            updateBackground()
+            // Only re-arm the ready flag during initial setup; after the
+            // first reveal, don't reset it (we don't want to re-hide the
+            // view every time the user scrolls).
+            if (!hasRevealed) {
+                currentImageReady = false
+            }
+        }
+
+        NumberAnimation {
+            id: revealAnimation
+            target: pathView
+            property: "opacity"
+            to: 1
+            duration: 20
+            easing.type: Easing.OutCubic
+        }
+
+        function tryReveal() {
+            if (hasRevealed) return
+            if (!currentImageReady) return
+            hasRevealed = true
+            revealFallback.stop()
+            revealAnimation.start()
+        }
+
+        Connections {
+            target: pathView
+            function onCurrentImageReadyChanged() {
+                pathView.tryReveal()
+            }
+        }
+
+        // Fallback: if the current image never reports ready (missing
+        // file, decoder hiccup), still show something after a moment so
+        // the panel isn't stuck fully transparent.
+        Timer {
+            id: revealFallback
+            interval: 600
+            repeat: false
+            onTriggered: {
+                if (!pathView.hasRevealed) {
+                    pathView.hasRevealed = true
+                    revealAnimation.start()
+                }
+            }
+        }
 
         Timer {
             id: initTimer
-            interval: 50
+            interval: 16
             repeat: false
             onTriggered: {
                 if (folderModel.count === 0) return
@@ -216,6 +301,10 @@ PanelWindow {
 
                 pathView.currentIndex = matchedIndex
                 updateBackground()
+
+                // Give the new current delegate a chance to load; if it
+                // doesn't report ready in time, the fallback fires.
+                revealFallback.restart()
             }
         }
 
@@ -306,6 +395,9 @@ PanelWindow {
             width: cardW
             height: cardH
 
+            property bool isCurrent: PathView.isCurrentItem
+            property bool isVideo: main.isVideoFile(model.fileName)
+
             scale: PathView.itemScale
             opacity: PathView.itemOpacity
             z: PathView.itemZ
@@ -324,8 +416,8 @@ PanelWindow {
                 radius: 6
                 color: "#1e1e2e"
                 clip: true
-                border.width: PathView.isCurrentItem ? 3 : 1
-                border.color: PathView.isCurrentItem ? configs.border_color : "#22ffffff"
+                border.width: delegateItem.isCurrent ? 3 : 1
+                border.color: delegateItem.isCurrent ? configs.border_color : "#22ffffff"
 
                 Text {
                     id: alt
@@ -333,6 +425,7 @@ PanelWindow {
                     color: configs.border_color
                     anchors.centerIn: parent
                     font.pixelSize: 14
+                    visible: img.status !== Image.Ready
                 }
 
                 Image {
@@ -343,7 +436,7 @@ PanelWindow {
                     cache: false
                     smooth: true
 
-                    source: "file://" + configs.cache_path.replace("~", Quickshell.env("HOME")) + fileName
+                    source: main.getThumbnailSource(fileName)
 
                     sourceSize.width: width
                     sourceSize.height: height
@@ -360,10 +453,41 @@ PanelWindow {
                     }
 
                     onStatusChanged: {
-                        if (status === Image.Error) {
+                        if (status === Image.Ready) {
+                            alt.text = "";
+                            // Signal to the parent PathView that the
+                            // currently-selected card is ready, so the
+                            // reveal animation can fire.
+                            if (delegateItem.isCurrent) {
+                                pathView.currentImageReady = true
+                            }
+                        } else if (status === Image.Error) {
                             alt.text = "Caching";
                             retryTimer.start();
                         }
+                    }
+                }
+
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 10
+                    width: 46
+                    height: 18
+                    radius: 4
+                    color: "#cc000000"
+                    border.width: 1
+                    border.color: "#44ffffff"
+                    z: 20
+                    visible: delegateItem.isVideo && img.status === Image.Ready
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "VIDEO"
+                        color: "#ff6666"
+                        font.pixelSize: 9
+                        font.weight: Font.Bold
+                        font.letterSpacing: 1
                     }
                 }
             }

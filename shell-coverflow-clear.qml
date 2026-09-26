@@ -34,6 +34,11 @@ PanelWindow {
 
     property real skewFactor: -0.18
 
+    readonly property var defaultVideoExtensions: ["mp4", "webm", "mov", "avi", "mkv", "gif", "m4v", "flv", "wmv", "mpeg", "3gp"]
+    readonly property var videoExtensions: (configs.video_extensions && configs.video_extensions.length > 0)
+        ? configs.video_extensions
+        : defaultVideoExtensions
+
     function scaleForOffset(offset) {
         const a = Math.abs(offset);
         if (a === 0) return centerScale;
@@ -59,6 +64,50 @@ PanelWindow {
             sum += stepBetween(i)
         }
         return n < 0 ? -sum : sum
+    }
+
+    function isVideoFile(fileName) {
+        if (!fileName) return false;
+        const lower = fileName.toLowerCase();
+        for (let i = 0; i < videoExtensions.length; i++) {
+            if (lower.endsWith("." + videoExtensions[i])) return true;
+        }
+        return false;
+    }
+
+    // Normalizes a config path: expands ~ and guarantees a trailing
+    // slash, so direct string concatenation with a fileName never
+    // produces a broken "...folderimage.png" path.
+    function normalizedPath(rawPath) {
+        let p = rawPath.replace("~", Quickshell.env("HOME"))
+        if (!p.endsWith("/")) p += "/"
+        return p
+    }
+
+    // Small cached thumbnail for the picker cards. For videos this maps
+    // to the .jpg that cache.sh derives from the extracted frame, since
+    // QML Image cannot render .mp4/.webm directly.
+    function getThumbnailSource(fileName) {
+        if (!fileName) return "";
+        let thumbnailFileName = fileName;
+        if (isVideoFile(fileName)) {
+            const lastDot = fileName.lastIndexOf(".");
+            if (lastDot > 0) {
+                thumbnailFileName = fileName.substring(0, lastDot) + ".jpg";
+            }
+        }
+        return "file://" + normalizedPath(configs.cache_path) + thumbnailFileName;
+    }
+
+    // Native-resolution still for the full-screen background. Only used
+    // for videos — images use their original file from wallpaper_path,
+    // which is already full quality.
+    function getVideoPreviewSource(fileName) {
+        if (!fileName) return "";
+        const lastDot = fileName.lastIndexOf(".");
+        let baseName = fileName;
+        if (lastDot > 0) baseName = fileName.substring(0, lastDot);
+        return "file://" + normalizedPath(configs.cache_path) + baseName + ".hq.jpg";
     }
 
     anchors {
@@ -90,6 +139,7 @@ PanelWindow {
             property string cache_path
             property int number_of_pictures
             property string border_color
+            property var video_extensions: []
         }
     }
 
@@ -103,11 +153,15 @@ PanelWindow {
         id: folderModel
         folder: "file://" + configs.wallpaper_path.replace("~", Quickshell.env("HOME"))
         showDirs: false
-        nameFilters: searchQuery.length > 0
-        ? ["*" + searchQuery + "*.png",
-        "*" + searchQuery + "*.jpg",
-        "*" + searchQuery + "*.jpeg"]
-        : ["*.png", "*.jpg", "*.jpeg"]
+        // Build the filter list once: images + configured video extensions.
+        // When a search query is active, prefix each pattern with it.
+        nameFilters: {
+            const base = ["png", "jpg", "jpeg"].concat(main.videoExtensions)
+            if (main.searchQuery.length > 0) {
+                return base.map(function(ext) { return "*" + main.searchQuery + "*." + ext })
+            }
+            return base.map(function(ext) { return "*." + ext })
+        }
         sortField: FolderListModel.Name
     }
 
@@ -118,23 +172,23 @@ PanelWindow {
         onTriggered: currentDateTime = new Date()
     }
 
-    // Normalizes a config path: expands ~ and guarantees a trailing
-    // slash, so direct string concatenation with a fileName never
-    // produces a broken "...folderimage.png" path.
-    function normalizedPath(rawPath) {
-        let p = rawPath.replace("~", Quickshell.env("HOME"))
-        if (!p.endsWith("/")) p += "/"
-        return p
-    }
-
     function updateBackground() {
         if (folderModel.count === 0) return
         const fileName = folderModel.get(pathView.currentIndex, "fileName")
-        // Full-quality source for the background — wallpaper_path (the
+
+        // For images: full-quality source from wallpaper_path (the
         // original folder), NOT cache_path. cache_path holds downscaled
-        // thumbnails generated for the small deck cards; reusing them
-        // here was why the background looked degraded.
-        const fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
+        // thumbnails for the picker cards.
+        // For videos: the .hq.jpg extracted by cache.sh — the closest
+        // equivalent to "full quality" we can get for a video, since we
+        // can't display the raw video file in an Image element.
+        let fullPath
+        if (isVideoFile(fileName)) {
+            fullPath = getVideoPreviewSource(fileName)
+        } else {
+            fullPath = "file://" + normalizedPath(configs.wallpaper_path) + fileName
+        }
+
         currentImagePath = fullPath
         if (!bgToggle) {
             bgImageB.source = fullPath
@@ -161,12 +215,6 @@ PanelWindow {
             asynchronous: true
             cache: false
             smooth: true
-            // Was "visible: false" in the previous version — an
-            // invisible Image can't be captured as a texture source,
-            // so nothing actually displayed: the panel just showed
-            // transparent (whatever sits behind it) with only the old
-            // glow/vignette layers drawn on top. That's what looked
-            // like "a white circle with a bit of light."
             visible: true
             opacity: bgToggle ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 500; easing.type: Easing.InOutQuad } }
@@ -342,6 +390,9 @@ PanelWindow {
             width: cardW
             height: cardH
 
+            property bool isCurrent: PathView.isCurrentItem
+            property bool isVideo: main.isVideoFile(model.fileName)
+
             scale: PathView.itemScale
             opacity: PathView.itemOpacity
             z: PathView.itemZ
@@ -360,8 +411,8 @@ PanelWindow {
                 radius: 6
                 color: "#1e1e2e"
                 clip: true
-                border.width: PathView.isCurrentItem ? 3 : 1
-                border.color: PathView.isCurrentItem ? configs.border_color : "#22ffffff"
+                border.width: delegateItem.isCurrent ? 3 : 1
+                border.color: delegateItem.isCurrent ? configs.border_color : "#22ffffff"
 
                 Text {
                     id: alt
@@ -369,6 +420,7 @@ PanelWindow {
                     color: configs.border_color
                     anchors.centerIn: parent
                     font.pixelSize: 14
+                    visible: img.status !== Image.Ready
                 }
 
                 Image {
@@ -379,7 +431,9 @@ PanelWindow {
                     cache: false
                     smooth: true
 
-                    source: "file://" + configs.cache_path.replace("~", Quickshell.env("HOME")) + fileName
+                    // Small cached thumbnail for the card; videos map to
+                    // their .jpg via getThumbnailSource.
+                    source: main.getThumbnailSource(fileName)
 
                     sourceSize.width: width
                     sourceSize.height: height
@@ -396,10 +450,39 @@ PanelWindow {
                     }
 
                     onStatusChanged: {
-                        if (status === Image.Error) {
+                        if (status === Image.Ready) {
+                            alt.text = "";
+                        } else if (status === Image.Error) {
                             alt.text = "Caching";
                             retryTimer.start();
                         }
+                    }
+                }
+
+                // VIDEO badge. Inside the clipped card so it inherits the
+                // rounded corners. No ShaderEffectSource wraps the image
+                // in this layout, so the visible binding is honoured
+                // normally across delegate recycling.
+                Rectangle {
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.margins: 10
+                    width: 46
+                    height: 18
+                    radius: 4
+                    color: "#cc000000"
+                    border.width: 1
+                    border.color: "#44ffffff"
+                    z: 20
+                    visible: delegateItem.isVideo && img.status === Image.Ready
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "VIDEO"
+                        color: "#ff6666"
+                        font.pixelSize: 9
+                        font.weight: Font.Bold
+                        font.letterSpacing: 1
                     }
                 }
             }
