@@ -48,7 +48,6 @@ PanelWindow {
         return "file://" + basePath + thumbnailFileName;
     }
 
-    // DEFER thumbnail generation script run to avoid UI lag on open
     Timer {
         interval: 1500
         running: true
@@ -94,14 +93,51 @@ PanelWindow {
         anchors.fill: parent
         focus: true
 
+        // Hidden until the initial index is set so the user never sees the
+        // frame where PathView is still at index 0.
+        opacity: 0
+
+        NumberAnimation {
+            id: revealAnimation
+            target: list
+            property: "opacity"
+            to: 1
+            duration: 50
+            easing.type: Easing.OutCubic
+        }
+
+        // Poll until PathView has finished its move, then fade in.
+        // Bailout at 250ms in case `moving` never returns to false.
+        Timer {
+            id: revealTimer
+            interval: 16
+            repeat: true
+            running: false
+            property int elapsed: 0
+            onTriggered: {
+                elapsed += interval;
+                if (!list.moving || elapsed > 250) {
+                    running = false;
+                    revealAnimation.start();
+                }
+            }
+        }
+
         model: folderModel
 
         property real tileWidth: width / Math.max(1, configs.number_of_pictures) - 10
-        property real spacing: 4
+
+        property real spacing: 10
+        property real centerSpacing: 15
+
         property real step: tileWidth + spacing
 
+        property real selectedScale: 1.7
+        property real unselectedScale: 0.95
+
         property int peekCount: 2
-        pathItemCount: Math.max(1, Math.min(folderModel.count, configs.number_of_pictures + peekCount * 2))
+
+        pathItemCount: Math.max(1, Math.min(folderModel.count, configs.number_of_pictures * 3 + 8))
 
         preferredHighlightBegin: 0.5
         preferredHighlightEnd: 0.5
@@ -109,14 +145,54 @@ PanelWindow {
 
         highlightMoveDuration: Math.max(50, (step / main.speed) * 1000)
 
-        path: Path {
-            startX: list.width / 2 - (list.pathItemCount * list.step) / 2
-            startY: main.height / 2
-            PathLine {
-                x: list.width / 2 + (list.pathItemCount * list.step) / 2
-                y: main.height / 2
+        // Build the path dynamically so each slot can have its own width
+        // (big for the center, small for the rest) and its own gap per edge.
+        // Only the two edges touching the center use centerGap.
+        function rebuildPath() {
+            var n = Math.max(1, list.pathItemCount);
+            var gap = list.spacing;
+            var centerGap = list.centerSpacing;
+            var bigWidth = list.tileWidth * list.selectedScale;
+            var smallWidth = list.tileWidth * list.unselectedScale;
+            var centerSlot = Math.floor((n - 1) / 2);
+
+            var widths = [];
+            var i;
+            for (i = 0; i < n; i++) {
+                widths.push(i === centerSlot ? bigWidth : smallWidth);
             }
+
+            var centers = [];
+            var cursor = 0;
+            for (i = 0; i < n; i++) {
+                centers.push(cursor + widths[i] / 2);
+
+                var edgeTouchesCenter = (i === centerSlot) || (i + 1 === centerSlot);
+                cursor += widths[i] + (edgeTouchesCenter ? centerGap : gap);
+            }
+
+            var offset = list.width / 2 - centers[centerSlot];
+            var y = main.height / 2;
+
+            var qml = "import QtQuick\nPath {\n";
+            qml += "startX: " + (offset + centers[0]) + "; startY: " + y + ";\n";
+            for (i = 1; i < n; i++) {
+                qml += "PathLine { x: " + (offset + centers[i]) + "; y: " + y + " }\n";
+                qml += "PathPercent { value: " + (i / Math.max(1, n - 1)) + " }\n";
+            }
+            qml += "}\n";
+
+            var oldPath = list.path;
+            list.path = Qt.createQmlObject(qml, list, "dynamicPath");
+            if (oldPath) oldPath.destroy();
         }
+
+        property real rebuildTrigger: list.width + list.tileWidth + list.pathItemCount
+            + list.selectedScale + list.unselectedScale + main.height
+            + list.spacing + list.centerSpacing
+        onRebuildTriggerChanged: rebuildPath()
+
+        Component.onCompleted: rebuildPath()
 
         function clampIndex(i) {
             if (count === 0) return 0;
@@ -135,7 +211,7 @@ PanelWindow {
 
         Timer {
             id: initTimer
-            interval: 16 // 1 frame delay
+            interval: 16
             repeat: false
             onTriggered: {
                 if (folderModel.count === 0) return;
@@ -158,6 +234,9 @@ PanelWindow {
                 }
 
                 list.centerOnIndex(matchedIndex);
+
+                revealTimer.elapsed = 0;
+                revealTimer.running = true;
             }
         }
 
@@ -175,8 +254,13 @@ PanelWindow {
             property bool nearFocus: Math.abs(index - list.currentIndex) <= 3
             property int retryCount: 0
             property int maxRetries: isVideo ? 20 : 6
-            width: list.tileWidth
+            width: isCurrent ? list.tileWidth * list.selectedScale : list.tileWidth * list.unselectedScale
             height: 500
+            z: isCurrent ? 2 : 1
+
+            Behavior on width {
+                NumberAnimation { duration: list.highlightMoveDuration; easing.type: Easing.OutCubic }
+            }
 
             Text {
                 id: alt
@@ -196,8 +280,10 @@ PanelWindow {
                 cache: true
                 smooth: delegateItem.nearFocus
                 source: main.getThumbnailSource(fileName)
-                sourceSize.width: width * 1.25
-                sourceSize.height: height * 1.25
+                // Constant sourceSize sized for the largest the card can get,
+                // so Qt never re-decodes during size transitions.
+                sourceSize.width: list.tileWidth * list.selectedScale * 1.25
+                sourceSize.height: 500 * 1.25
 
                 transform: Shear { xFactor: -0.25 }
 
@@ -264,7 +350,7 @@ PanelWindow {
                 id: border
                 z: 10
                 visible: delegateItem.isCurrent
-                width: list.tileWidth
+                width: delegateItem.width
                 height: 500
                 color: "transparent"
                 border.width: 4
