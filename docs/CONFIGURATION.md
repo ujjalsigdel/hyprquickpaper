@@ -79,3 +79,55 @@ Where that autostart line lives depends on your setup:
 
 This change only takes effect on your next login/session — `hyprctl reload` won't re-run it. After restarting, confirm the right daemon is running with `pgrep -a <daemon-name>` before testing the picker.
 
+---
+
+## Loading label appears on battery or low-end PCs
+
+**Symptom:** On opening the picker, you briefly see `Loading…` on the cards
+before the images appear or the label flashes for a moment.
+
+**Why:** The picker hides itself until the current background image is
+decoded, then fades in. Card thumbnails decode in parallel and usually
+finish first — but on slow storage or under power-save, card decodes lag
+behind the background, so the reveal fires while cards are still empty.
+
+**Fix:** open the layout file your `shell-*.qml` points at (`activeLayout`),
+and raise two values. Both are named the same across layouts.
+
+### 1. Increase the reveal delay
+
+Find the timer that gates the reveal and double its value:
+
+```qml
+// Floating and Grid layouts — one-shot fallback
+Timer {
+    id: revealFallback
+    interval: 800          // ← raise to 1500 or 2000
+    ...
+}
+```
+
+```qml
+// Bottom Dock and Coverflow layouts — polling timer with a bailout
+if (!list.moving || elapsed > 250) {   // ← raise 250 to 600 or 800
+```
+
+### 2. Increase the fade duration
+
+Find the fade-in animation and raise its duration:
+
+```qml
+NumberAnimation {
+    id: revealAnimation
+    duration: 220          // ← raise to 400 for a gentler fade
+    ...
+}
+```
+
+In Grid View the same value lives on `contentRoot`'s `Behavior on opacity`
+rather than a `revealAnimation` block, but the change is identical: raise
+the duration to `400`.
+
+A 400–500 ms fade gives late-decoding cards time to arrive while the panel
+is still becoming visible, so `Loading…` rarely shows even on slow hardware.
+

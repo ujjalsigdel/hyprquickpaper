@@ -167,6 +167,9 @@ Edit `config.json` — the **only required change** for most users:
 
 See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend switching, video setup, and layout selection.
 
+> [!TIP]
+> **On battery or a low-end PC, you may briefly see `Loading…` on the cards when the picker opens.** It's cosmetic — images just haven't decoded yet. Fixable by raising two numbers in your layout file: see [Loading label appears on battery or low-end PCs](docs/CONFIGURATION.md#loading-label-appears-on-battery-or-low-end-pcs).
+
 ---
 
 ## ⌨️ Keybindings
