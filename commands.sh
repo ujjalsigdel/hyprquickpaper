@@ -2,16 +2,20 @@
 #
 # hyprquickpaper wallpaper backend dispatcher
 # ---------------------------------------------
-# You should NOT normally need to edit this file. Instead, set
-# "wallpaper_tool" in config.json to one of:
-#   awww | hyprpaper | waypaper | swaybg | feh | ml4w
+# For static images, this script picks a backend in this priority order:
+#
+#   1. `custom_command` in config.json — if non-empty, this runs with the
+#      wallpaper path in $WALLPAPER. Use this for anything not covered by
+#      the built-in list (Noctalia IPC, custom scripts, D-Bus, etc.).
+#
+#   2. `wallpaper_tool` in config.json — a named backend: awww, hyprpaper,
+#      waypaper, swaybg, feh. Or "auto" to detect the running daemon.
+#
+#   3. Fallback — if the chosen tool's daemon isn't running, fall back to
+#      whichever supported daemon IS running, and say so.
 #
 # Video files (mp4/webm/mov/etc, see "video_extensions" in config.json)
-# are always played through mpvpaper, regardless of "wallpaper_tool" —
-# none of the static-image backends above can render video.
-#
-# Only edit the case block below if you need a backend that isn't
-# listed (e.g. a custom script).
+# are always played through mpvpaper, regardless of the above.
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG="$DIR/config.json"
 source "$DIR/common.sh"
@@ -21,8 +25,19 @@ if [ -z "$WALLPAPER" ]; then
     exit 0
 fi
 
-TOOL=$(jq -r '.wallpaper_tool // "awww"' "$CONFIG")
+TOOL=$(jq -r '.wallpaper_tool // "auto"' "$CONFIG")
+CUSTOM_CMD=$(jq -r '.custom_command // ""' "$CONFIG")
 VIDEO_EXT_PATTERN=$(get_video_extensions_pattern "$CONFIG")
+
+# --- daemon detection --------------------------------------------------
+# Returns the name of a running supported wallpaper daemon, or "" if none.
+detect_running_daemon() {
+    if pgrep -x awww-daemon >/dev/null; then echo "awww"; return; fi
+    if pgrep -x swww-daemon >/dev/null; then echo "awww"; return; fi   # legacy name
+    if pgrep -x hyprpaper  >/dev/null; then echo "hyprpaper"; return; fi
+    if pgrep -x swaybg     >/dev/null; then echo "swaybg"; return; fi
+    echo ""
+}
 
 # ALWAYS kill any running video wallpaper first, whether we're about to
 # set an image or a different video — otherwise the old mpvpaper process
@@ -52,37 +67,108 @@ if is_video "$WALLPAPER" "$VIDEO_EXT_PATTERN"; then
         exit 1
     fi
 else
-    echo "Using $TOOL for image wallpaper: $WALLPAPER"
+    # ---- Priority 1: user's custom command ----------------------------
+    if [ -n "$CUSTOM_CMD" ]; then
+        echo "Using custom_command from config.json:"
+        echo "    $CUSTOM_CMD"
+        WALLPAPER="$WALLPAPER" bash -c "$CUSTOM_CMD"
+        status=$?
+        if [ "$status" -ne 0 ]; then
+            echo ""
+            echo "⚠️  custom_command failed (exit $status)."
+            echo "    Verify the command works standalone:"
+            echo "        WALLPAPER=\"$WALLPAPER\" $CUSTOM_CMD"
+            echo ""
+        fi
+    else
+        # ---- Priority 2: named tool, or auto-detect -------------------
+        if [ "$TOOL" = "auto" ]; then
+            DETECTED=$(detect_running_daemon)
+            if [ -n "$DETECTED" ]; then
+                echo "Auto-detected running daemon: $DETECTED"
+                TOOL="$DETECTED"
+            else
+                echo "⚠️  No supported wallpaper daemon detected."
+                echo ""
+                echo "    Start one of these daemons and try again:"
+                echo "        awww-daemon  |  hyprpaper  |  swaybg"
+                echo ""
+                echo "    Or, if your desktop shell manages wallpapers itself"
+                echo "    (Noctalia, end-4 dots, etc.), set 'custom_command'"
+                echo "    in config.json to whichever command your shell uses."
+                echo "    See README.md → Configuration for examples."
+                echo ""
+                TOOL=""
+            fi
+        fi
 
-    case "$TOOL" in
-        awww|swww)
-            # Requires: exec-once = awww-daemon in hyprland.conf
-            awww img "$WALLPAPER" --transition-type grow --transition-duration 1 --transition-fps 60
-            ;;
-        hyprpaper)
-            hyprctl hyprpaper preload "$WALLPAPER" 2>/dev/null
-            hyprctl hyprpaper wallpaper ",$WALLPAPER"
-            ;;
-        waypaper)
-            waypaper --wallpaper "$WALLPAPER"
-            ;;
-        swaybg)
-            pkill swaybg 2>/dev/null
-            swaybg -i "$WALLPAPER" -m fill &
-            ;;
-        feh)
-            # X11 / XWayland only — not truly Wayland-native
-            feh --bg-fill "$WALLPAPER"
-            ;;
-        ml4w)
-            # Only works if you actually have the full ML4W dotfiles installed.
-            "$HOME/.config/ml4w/scripts/ml4w-wallpaper" "$WALLPAPER"
-            ;;
-        *)
-            echo "hyprquickpaper: unknown wallpaper_tool '$TOOL' in config.json, defaulting to awww" >&2
-            awww img "$WALLPAPER" --transition-type grow --transition-duration 1
-            ;;
-    esac
+        # If the configured tool's daemon isn't running, try to start it,
+        # then fall back to whichever supported daemon IS running.
+        case "$TOOL" in
+            awww|swww)
+                if ! pgrep -x awww-daemon >/dev/null && ! pgrep -x swww-daemon >/dev/null; then
+                    RUNNING=$(detect_running_daemon)
+                    if [ -n "$RUNNING" ]; then
+                        echo "Note: '$TOOL' daemon not running; falling back to '$RUNNING'."
+                        TOOL="$RUNNING"
+                    fi
+                fi
+                ;;
+            hyprpaper)
+                if ! pgrep -x hyprpaper >/dev/null; then
+                    RUNNING=$(detect_running_daemon)
+                    if [ -n "$RUNNING" ]; then
+                        echo "Note: '$TOOL' daemon not running; falling back to '$RUNNING'."
+                        TOOL="$RUNNING"
+                    fi
+                fi
+                ;;
+        esac
+
+        # ---- Priority 3: dispatch -------------------------------------
+        status=0
+        if [ -n "$TOOL" ]; then
+            echo "Using $TOOL for image wallpaper: $WALLPAPER"
+            case "$TOOL" in
+                awww|swww)
+                    # awww and legacy swww share compatible CLIs; awww is
+                    # the maintained successor and preferred binary name.
+                    awww img "$WALLPAPER" --transition-type grow --transition-duration 1 --transition-fps 60 || status=$?
+                    ;;
+                hyprpaper)
+                    hyprctl hyprpaper preload "$WALLPAPER" 2>/dev/null
+                    hyprctl hyprpaper wallpaper ",$WALLPAPER" || status=$?
+                    ;;
+                waypaper)
+                    waypaper --wallpaper "$WALLPAPER" || status=$?
+                    ;;
+                swaybg)
+                    pkill swaybg 2>/dev/null
+                    swaybg -i "$WALLPAPER" -m fill &
+                    ;;
+                feh)
+                    # X11 / XWayland only — not truly Wayland-native
+                    feh --bg-fill "$WALLPAPER" || status=$?
+                    ;;
+                *)
+                    echo "hyprquickpaper: unknown wallpaper_tool '$TOOL' in config.json, defaulting to awww" >&2
+                    awww img "$WALLPAPER" --transition-type grow --transition-duration 1 || status=$?
+                    ;;
+            esac
+        else
+            status=1
+        fi
+
+        if [ "$status" -ne 0 ] && [ -n "$TOOL" ]; then
+            echo ""
+            echo "⚠️  Failed to apply wallpaper (exit $status)."
+            echo "    Backend: $TOOL"
+            echo "    Check the daemon is running:"
+            echo "        pgrep -a -f 'awww-daemon|hyprpaper|swaybg'"
+            echo "    Or set 'custom_command' in config.json to a working command."
+            echo ""
+        fi
+    fi
 fi
 
 # Track the active wallpaper ourselves so the picker can highlight it
@@ -90,18 +176,6 @@ fi
 mkdir -p "$HOME/.cache/hyprquickpaper"
 echo "$WALLPAPER" > "$HOME/.cache/hyprquickpaper/current_wallpaper"
 
-# --- Optional: keep a copy of the current wallpaper at a fixed path ---
-# Set "stable_copy_path" in config.json (e.g. "~/Pictures/wallpaper.png")
-# if you want some OTHER tool (a lock screen, a status-bar script, a
-# theming script) to always be able to read the current wallpaper from
-# one unchanging filename. Leave it empty ("") in config.json to skip
-# this entirely.
-#
-# For video wallpapers we copy the cached *thumbnail* (a still jpg)
-# rather than the raw video file, since anything reading stable_copy_path
-# almost certainly expects a static image. Prefers the HQ still
-# (.hq.jpg) when available, since consumers of this path usually care
-# more about quality than decode speed.
 STABLE_COPY_PATH=$(jq -r '.stable_copy_path // ""' "$CONFIG")
 if [ -n "$STABLE_COPY_PATH" ]; then
     EXPANDED_COPY_PATH="${STABLE_COPY_PATH/#\~/$HOME}"

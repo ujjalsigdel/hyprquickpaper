@@ -155,17 +155,18 @@ Edit `config.json` — the **only required change** for most users:
 
 ```json
 {
-  "wallpaper_tool": "awww",
+  "wallpaper_tool": "auto",
   "wallpaper_path": "~/Pictures/Wallpapers/"
 }
 ```
 
 **Key fields:**
-- `wallpaper_tool` — Which backend to use (`awww`, `hyprpaper`, `swaybg`, etc.)
+- `wallpaper_tool` — Which backend to use. `"auto"` (default) detects your running daemon; you can also set `awww`, `hyprpaper`, `swaybg`, etc.
 - `wallpaper_path` — Your wallpaper folder
+- `custom_command` — Optional. For desktop shells that manage wallpapers themselves (Noctalia, etc.) — set this to whatever command your shell uses, with `$WALLPAPER` as the path.
 - `video_extensions` — Video formats to support
 
-See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend switching, video setup, and layout selection.
+See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend switching, custom commands, video setup, and layout selection.
 
 > [!TIP]
 > **On battery or a low-end PC, you may briefly see `Loading…` on the cards when the picker opens.** It's cosmetic — images just haven't decoded yet. Fixable by raising two numbers in your layout file: see [Loading label appears on battery or low-end PCs](docs/CONFIGURATION.md#loading-label-appears-on-battery-or-low-end-pcs).

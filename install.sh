@@ -119,7 +119,12 @@ if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
     fi
 fi
 
-# --- Default wallpaper backend ---
+# --- Wallpaper backend ---
+# awww is a sensible default to install for users who don't already have a
+# wallpaper daemon running. Users on a desktop shell that manages wallpapers
+# itself (Noctalia, etc.) can ignore this and set 'custom_command' in
+# config.json instead. Auto-detection at runtime finds whichever daemon the
+# user actually has running.
 echo "==> Checking awww (default wallpaper backend)..."
 if ! command -v awww &>/dev/null; then
     echo "--> awww not found, installing..."
@@ -128,14 +133,14 @@ if ! command -v awww &>/dev/null; then
     elif command -v dnf &>/dev/null; then
         echo "Note: awww has no official Fedora package yet."
         echo "  'cargo install awww' only installs the client, not awww-daemon —"
-        echo "  you'll need to build both from source, or pick a different"
-        echo "  wallpaper_tool (hyprpaper/swaybg) in config.json instead."
+        echo "  you'll need to build both from source, or use hyprpaper/swaybg"
+        echo "  (set 'wallpaper_tool' in config.json, or leave it as \"auto\")."
     elif command -v apt &>/dev/null; then
         echo "Note: awww is usually not packaged for Debian/Ubuntu."
-        echo "  Build from source, or change wallpaper_tool in config.json to"
-        echo "  hyprpaper/swaybg instead."
+        echo "  Build from source, or use hyprpaper/swaybg instead"
+        echo "  (set 'wallpaper_tool' in config.json, or leave it as \"auto\")."
     else
-        echo "Please install awww manually (or change wallpaper_tool in config.json)."
+        echo "Please install awww manually, or use hyprpaper/swaybg."
     fi
 else
     echo "--> awww already present."
@@ -146,6 +151,9 @@ echo "==> Initializing local cache directories..."
 mkdir -p ~/.cache/hyprquickpaper
 mkdir -p ~/.cache/quickshell/thumbs
 touch ~/.cache/hyprquickpaper/current_wallpaper
+
+# --- Make scripts executable before invoking any of them ---
+chmod +x cache.sh commands.sh install.sh
 
 # --- Seed the wallpaper folder with sample images if config points nowhere useful ---
 # Reads wallpaper_path from config.json, expands ~, and only copies sample
@@ -188,12 +196,16 @@ if [ -f "$CONFIG_FILE" ] && command -v jq &>/dev/null; then
     fi
 fi
 
-echo "==> Setting script execution permissions..."
-chmod +x cache.sh commands.sh install.sh
+# --- Pre-generate thumbnails so first launch is clean ---
+echo "==> Pre-generating thumbnails (this may take a moment)..."
+if [ -f "$SCRIPT_DIR/config.json" ] && [ -x "$SCRIPT_DIR/cache.sh" ]; then
+    bash "$SCRIPT_DIR/cache.sh" "$SCRIPT_DIR" || \
+        echo "Warning: cache.sh did not finish cleanly — thumbnails will still be generated on first picker launch."
+fi
 
 # --- Strip .git if installed to the canonical location ---
 # The cloned repo's history isn't needed at runtime. If the user cloned
-# somewhere else (e.g. a dev checkout), .git is left alone.
+# somewhere else (a dev checkout), .git is left alone.
 if [ -d "$SCRIPT_DIR/.git" ]; then
     if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ]; then
         echo "==> Removing .git (not needed after install)..."
@@ -206,14 +218,24 @@ fi
 echo "==> Setup complete!"
 echo ""
 echo "Before running, make sure you've edited config.json:"
-echo "  - wallpaper_path -> your real wallpaper folder"
-echo "  - wallpaper_tool -> awww | hyprpaper | waypaper | swaybg | feh | ml4w"
+echo "  - wallpaper_path   -> your real wallpaper folder"
+echo "  - wallpaper_tool   -> auto | awww | hyprpaper | waypaper | swaybg | feh"
+echo "  - custom_command   -> (optional) for shells that manage wallpapers themselves"
 echo "  - video_extensions -> list of video extensions to support"
 echo ""
-echo "If you are using default awww:"
-echo "  Make sure awww-daemon is started by Hyprland (add to hyprland.conf):"
-echo "       exec-once = awww-daemon"
-echo "  (ML4W users: this instead goes in ~/.config/hypr/conf/autostart.lua as hl.exec_cmd(\"awww-daemon\"))"
+echo "Wallpaper daemon autostart:"
+echo "  Depending on your Hyprland setup, the autostart line goes in one of:"
+echo ""
+echo "    Classic config:  ~/.config/hypr/hyprland.conf"
+echo "        exec-once = awww-daemon"
+echo ""
+echo "    Lua-based configs (some dotfiles use these):"
+echo "        ~/.config/hypr/conf/autostart.lua"
+echo "        hl.exec_cmd(\"awww-daemon\")"
+echo ""
+echo "  If your desktop shell already manages wallpapers itself (Noctalia,"
+echo "  end-4 dots, etc.), skip the daemon line and set 'custom_command' in"
+echo "  config.json instead. See README.md for examples."
 echo ""
 echo "For video support, make sure mpvpaper is installed:"
 echo "  - Arch: yay -S mpvpaper (AUR)"
