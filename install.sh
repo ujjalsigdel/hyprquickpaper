@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CANONICAL_DIR="$HOME/.config/quickshell/hyprquickpaper"
+
 echo "==> Checking and installing dependencies..."
 
 install_pkg() {
@@ -48,7 +51,7 @@ install_pkg "ffmpeg" "ffmpeg" || true
 echo "==> Checking mpvpaper (video wallpaper support)..."
 if ! command -v mpvpaper &>/dev/null; then
     echo "--> mpvpaper not found."
-    
+
     if command -v pacman &>/dev/null; then
         # Arch: mpvpaper is in the AUR
         if command -v yay &>/dev/null; then
@@ -144,14 +147,67 @@ mkdir -p ~/.cache/hyprquickpaper
 mkdir -p ~/.cache/quickshell/thumbs
 touch ~/.cache/hyprquickpaper/current_wallpaper
 
+# --- Seed the wallpaper folder with sample images if config points nowhere useful ---
+# Reads wallpaper_path from config.json, expands ~, and only copies sample
+# images when the configured folder is missing or has no images. Users who
+# already pointed config.json at their real wallpaper folder see nothing
+# copied and no messages.
+CONFIG_FILE="$SCRIPT_DIR/config.json"
+if [ -f "$CONFIG_FILE" ] && command -v jq &>/dev/null; then
+    WALLPAPER_PATH=$(jq -r '.wallpaper_path // ""' "$CONFIG_FILE")
+    WALLPAPER_PATH="${WALLPAPER_PATH/#\~/$HOME}"
+
+    if [ -n "$WALLPAPER_PATH" ] && ! find "$WALLPAPER_PATH" -maxdepth 1 -type f \
+            \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
+            2>/dev/null | head -n1 | grep -q .; then
+
+        SAMPLE_SRC="$SCRIPT_DIR/assets/screenshots"
+        if [ -d "$SAMPLE_SRC" ] && \
+           find "$SAMPLE_SRC" -maxdepth 1 -type f \
+                \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
+                2>/dev/null | head -n1 | grep -q .; then
+
+            mkdir -p "$WALLPAPER_PATH"
+            find "$SAMPLE_SRC" -maxdepth 1 -type f \
+                \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) \
+                -exec cp -n {} "$WALLPAPER_PATH/" \;
+
+            echo ""
+            echo "==> Wallpaper folder: $WALLPAPER_PATH"
+            echo "    No images were found there, so a few sample images from"
+            echo "    assets/screenshots/ were copied in so the picker has"
+            echo "    something to display on first launch."
+            echo ""
+            echo "    These are placeholders. To use your own wallpapers:"
+            echo "      1. Delete the samples:  rm \"$WALLPAPER_PATH\"/*.jpg"
+            echo "      2. Drop your real wallpapers into that folder,"
+            echo "         OR change 'wallpaper_path' in config.json to point"
+            echo "         at wherever your wallpapers actually live."
+            echo ""
+        fi
+    fi
+fi
+
 echo "==> Setting script execution permissions..."
 chmod +x cache.sh commands.sh install.sh
+
+# --- Strip .git if installed to the canonical location ---
+# The cloned repo's history isn't needed at runtime. If the user cloned
+# somewhere else (e.g. a dev checkout), .git is left alone.
+if [ -d "$SCRIPT_DIR/.git" ]; then
+    if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ]; then
+        echo "==> Removing .git (not needed after install)..."
+        rm -rf "$SCRIPT_DIR/.git"
+    else
+        echo "==> Keeping .git (installed outside the default location — likely a dev checkout)."
+    fi
+fi
 
 echo "==> Setup complete!"
 echo ""
 echo "Before running, make sure you've edited config.json:"
 echo "  - wallpaper_path -> your real wallpaper folder"
-echo "  - wallpaper_tool -> awww | hyprpaper | waypaper | swaybg | feh | ml4w | mpvpaper"
+echo "  - wallpaper_tool -> awww | hyprpaper | waypaper | swaybg | feh | ml4w"
 echo "  - video_extensions -> list of video extensions to support"
 echo ""
 echo "If you are using default awww:"
