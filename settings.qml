@@ -32,20 +32,20 @@ PanelWindow {
     }
 
     readonly property var layouts: [
-        { file: "shell-classic.qml",                    name: "Classic",                shot: "classic.jpg" },
-        { file: "shell-bottom-dock.qml",                name: "Bottom Dock",            shot: "bottom-dock.jpg" },
-        { file: "shell-coverflow.qml",                  name: "Coverflow",              shot: "coverflow.jpg" },
-        { file: "shell-coverflow-clear.qml",            name: "Coverflow Clear",        shot: "coverflow-clear.jpg" },
-        { file: "shell-coverflow-minimal.qml",          name: "Coverflow Minimal",      shot: "coverflow-minimal.jpg" },
-        { file: "shell-floating.qml",                   name: "Floating",               shot: "floating.jpg" },
-        { file: "shell-floating-center-reflection.qml", name: "Floating C-Reflection",  shot: "floating-center-reflection.jpg" },
-        { file: "shell-floating-clean.qml",             name: "Floating Clean",         shot: "floating-clean.jpg" },
-        { file: "shell-floating-clear.qml",             name: "Floating Clear",         shot: "floating-clear.jpg" },
-        { file: "shell-floating-clear-clean.qml",       name: "Floating Clear Clean",   shot: "floating-clear-clean.jpg" },
-        { file: "shell-floating-minimal.qml",           name: "Floating Minimal",       shot: "floating-minimal.jpg" },
-        { file: "shell-floating-minimal-clean.qml",     name: "Floating Minimal Clean", shot: "floating-minimal-clean.jpg" },
-        { file: "shell-grid-view.qml",                  name: "Grid View",              shot: "grid-view.jpg" },
-        { file: "shell-hexcomb.qml",                    name: "Hexacomb",               shot: "hexcomb.jpg" }
+        { file: "layouts/shell-classic.qml",                    name: "Classic",                shot: "classic.jpg" },
+        { file: "layouts/shell-bottom-dock.qml",                name: "Bottom Dock",            shot: "bottom-dock.jpg" },
+        { file: "layouts/shell-coverflow.qml",                  name: "Coverflow",              shot: "coverflow.jpg" },
+        { file: "layouts/shell-coverflow-clear.qml",            name: "Coverflow Clear",        shot: "coverflow-clear.jpg" },
+        { file: "layouts/shell-coverflow-minimal.qml",          name: "Coverflow Minimal",      shot: "coverflow-minimal.jpg" },
+        { file: "layouts/shell-floating.qml",                   name: "Floating",               shot: "floating.jpg" },
+        { file: "layouts/shell-floating-center-reflection.qml", name: "Floating C-Reflection",  shot: "floating-center-reflection.jpg" },
+        { file: "layouts/shell-floating-clean.qml",             name: "Floating Clean",         shot: "floating-clean.jpg" },
+        { file: "layouts/shell-floating-clear.qml",             name: "Floating Clear",         shot: "floating-clear.jpg" },
+        { file: "layouts/shell-floating-clear-clean.qml",       name: "Floating Clear Clean",   shot: "floating-clear-clean.jpg" },
+        { file: "layouts/shell-floating-minimal.qml",           name: "Floating Minimal",       shot: "floating-minimal.jpg" },
+        { file: "layouts/shell-floating-minimal-clean.qml",     name: "Floating Minimal Clean", shot: "floating-minimal-clean.jpg" },
+        { file: "layouts/shell-grid-view.qml",                  name: "Grid View",              shot: "grid-view.jpg" },
+        { file: "layouts/shell-hexcomb.qml",                    name: "Hexacomb",               shot: "hexcomb.jpg" }
     ]
 
     function applyLayout(fileName) {

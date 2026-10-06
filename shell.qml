@@ -13,7 +13,7 @@ Scope {
 
         JsonAdapter {
             id: configs
-            property string active_layout: "shell-classic.qml"
+            property string active_layout: ""
         }
     }
 
@@ -24,17 +24,10 @@ Scope {
 
         onStatusChanged: {
             if (status === Loader.Error) {
-                console.log("hyprquickpaper: could not load layout '" +
-                            root.wantedLayout + "', falling back to classic")
-                source = Qt.resolvedUrl("shell-classic.qml")
+                console.log("hyprquickpaper: failed to load layout, falling back to classic")
+                source = Qt.resolvedUrl("layouts/shell-classic.qml")
             }
         }
-    }
-
-    readonly property string wantedLayout: {
-        const v = configs.active_layout
-        if (!v || v.length === 0) return "shell-classic.qml"
-        return v
     }
 
     Timer {
@@ -42,7 +35,20 @@ Scope {
         interval: 60
         repeat: false
         onTriggered: {
-            layoutLoader.source = Qt.resolvedUrl(root.wantedLayout)
+            let layout = ""
+            try {
+                layout = configs.active_layout
+            } catch (e) {
+                layout = ""
+            }
+
+            if (!layout || layout.length === 0) {
+                layout = "layouts/shell-classic.qml"
+            } else if (layout.indexOf("/") < 0) {
+                layout = "layouts/" + layout
+            }
+
+            layoutLoader.source = Qt.resolvedUrl(layout)
             layoutLoader.active = true
         }
     }
