@@ -215,7 +215,7 @@ mkdir -p ~/.cache/quickshell/thumbs
 touch ~/.cache/hyprquickpaper/current_wallpaper
 
 # --- Make scripts executable before invoking any of them ---
-chmod +x cache.sh commands.sh install.sh
+chmod +x cache.sh commands.sh install.sh set-layout.sh
 
 # --- Seed the wallpaper folder with sample images if config points nowhere useful ---
 CONFIG_FILE="$SCRIPT_DIR/config.json"
