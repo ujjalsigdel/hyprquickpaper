@@ -164,6 +164,7 @@ Edit `config.json` — the **only required change** for most users:
 - `wallpaper_tool` — Which backend to use. `"auto"` (default) detects your running daemon; you can also set `awww`, `hyprpaper`, `swaybg`, etc.
 - `wallpaper_path` — Your wallpaper folder
 - `custom_command` — Optional. For desktop shells that manage wallpapers themselves (Noctalia, etc.) — set this to whatever command your shell uses, with `$WALLPAPER` as the path.
+- `post_apply` — Optional array of shell commands to run after every wallpaper change. Ideal for matugen/wallust/pywal theming or reloading your bar.
 - `video_extensions` — Video formats to support
 
 See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend switching, custom commands, video setup, and layout selection.

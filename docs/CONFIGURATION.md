@@ -8,6 +8,8 @@
   "cache_path": "~/.cache/quickshell/thumbs/",
   "wallpaper_tool": "auto",
   "custom_command": "",
+  "post_apply": [],
+  "notify_on_apply": false,
   "number_of_pictures": 7,
   "border_color": "#C27B63",
   "cache_batch_size": 20,
@@ -23,6 +25,8 @@
 | `cache_path` | Where generated thumbnails live. Auto-created on first run. | Leave default, or point at tmpfs if you have thousands of wallpapers. |
 | `wallpaper_tool` | Selects which backend `commands.sh` uses for static images. | `"auto"` (default, detects the running daemon), or one of `awww`, `hyprpaper`, `waypaper`, `swaybg`, `feh`. |
 | `custom_command` | If non-empty, overrides `wallpaper_tool` entirely. Runs with the picked path in `$WALLPAPER`. | Leave `""` for standard setups. Set it if your desktop shell manages wallpapers itself (Noctalia, custom IPC, etc.). See [Custom command](#custom-command) below. |
+| `post_apply` | Optional. Array of shell commands run after every successful wallpaper change. Each runs with `$WALLPAPER` (picked file, may be a video) and `$WALLPAPER_STILL` (always a still image) exported. | Leave `[]` to skip. See [Post-apply hooks](#post-apply-hooks) below for examples. |
+| `notify_on_apply` | Show a desktop notification after each pick (success or failure). Requires `notify-send`. | `false` by default. Set to `true` if you want feedback when the picker closes via keybind and you don't see terminal output. |
 | `number_of_pictures` | Jump distance for the `u`/`d` fast-scroll keys (not a display count). | Larger folder → bigger number (10–15+). |
 | `border_color` | Hex color of the selected card's border. | Any hex, e.g. `"#89b4fa"`. |
 | `cache_batch_size` | Max parallel `convert`/`ffmpeg` jobs while building thumbnails. `0` = unlimited. | Set to roughly your CPU thread count (`4`–`16`) — don't leave at `0` with a large wallpaper folder. |
@@ -70,6 +74,61 @@ Examples:
 ```
 
 `custom_command` takes priority over `wallpaper_tool` — if it's non-empty, the daemon detection and case dispatch are skipped entirely. Leave it empty to use the normal backend path.
+
+### Post-apply hooks
+
+After the wallpaper is applied, `commands.sh` can run any list of shell
+commands you want — colorscheme regeneration, bar reloads, notification
+daemons, anything. Set `post_apply` in config.json to an array of shell
+commands. Each runs with two variables exported:
+
+- `$WALLPAPER` — the picked file. For videos this is the `.mp4`/`.webm`.
+- `$WALLPAPER_STILL` — always a still image. For images it's the same as
+  `$WALLPAPER`; for videos it's the cached `.hq.jpg` (or `.jpg` fallback).
+
+Theming tools that can't read video files should use `$WALLPAPER_STILL`.
+Anything else can use `$WALLPAPER`.
+
+Hooks run in order. If one fails, a warning is printed and the remaining
+hooks still run — so a broken bar reload won't stop your colorscheme from
+being generated.
+
+**matugen example:**
+```json
+"post_apply": [
+  "matugen image \"$WALLPAPER_STILL\" --type scheme-tonal-spot --prefer saturation",
+  "killall -SIGUSR2 waybar",
+  "swaync-client -rs"
+]
+```
+
+**wallust example:**
+```json
+"post_apply": [
+  "wallust run \"$WALLPAPER_STILL\"",
+  "killall -SIGUSR2 waybar"
+]
+```
+
+**pywal example:**
+```json
+"post_apply": [
+  "wal -i \"$WALLPAPER_STILL\"",
+  "killall -SIGUSR2 waybar"
+]
+```
+
+**Hyprpaper config persistence example** — rewrite `hyprpaper.conf` so the
+current wallpaper survives a daemon restart:
+
+```json                                                     
+"post_apply": [
+  "printf 'preload = %s\\nwallpaper {\\n  monitor =\\n  path = %s\\n  fit_mode = cover\\n}\\n' \"$WALLPAPER\" \"$WALLPAPER\" > ~/.config/hypr/hyprpaper.conf"
+]
+```
+
+(Only do this if hyprpaper is your `wallpaper_tool` and you don't have
+hand-written custom entries in that file you'd rather keep.)
 
 ### `shell.qml` — which layout renders
 

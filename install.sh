@@ -4,12 +4,29 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CANONICAL_DIR="$HOME/.config/quickshell/hyprquickpaper"
 
+# --- Interactive prompt helper ---
+# Returns 0 for yes, 1 for no. Non-interactive runs (piped, CI, no tty)
+# fall back to the default without hanging on a prompt.
+ask_yes_no() {
+    local prompt="$1"
+    local default="${2:-n}"
+    if [ ! -t 0 ]; then
+        [ "$default" = "y" ] && return 0 || return 1
+    fi
+    local reply=""
+    read -r -p "$prompt " reply 2>/dev/null || reply=""
+    case "$reply" in
+        [Yy]*) return 0 ;;
+        [Nn]*) return 1 ;;
+        "")    [ "$default" = "y" ] && return 0 || return 1 ;;
+        *)     return 1 ;;
+    esac
+}
+
 # --- Strip .git if installed to the canonical location ---
 # The cloned repo's history isn't needed at runtime. If the user cloned
 # somewhere else (a dev checkout), .git is left alone.
 if [ -d "$SCRIPT_DIR/.git" ]; then
-    # If we're inside another git repo, the nested .git causes stale-lock
-    # and submodule-style problems. Strip it either way.
     parent_repo="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null || true)"
     if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ] || [ -n "$parent_repo" ]; then
         echo "==> Removing .git (not needed after install)..."
@@ -58,51 +75,70 @@ else
     install_pkg "convert" "ImageMagick" || true          # fallback guess
 fi
 
-# --- Video support ---
-echo "==> Checking video dependencies..."
-install_pkg "ffmpeg" "ffmpeg" || true
+# --- Video wallpaper support (opt-in) ---
+echo ""
+echo "==> Video wallpaper support"
+echo ""
+echo "   Videos (mp4/webm/mov/etc.) need two extra tools:"
+echo "     - ffmpeg    (thumbnail generation)"
+echo "     - mpvpaper  (actual playback — AUR/source-only on most distros)"
+echo ""
+echo "   Skip this if you only use static image wallpapers."
+echo ""
+ENABLE_VIDEO=false
+if ask_yes_no "Enable video wallpaper support? [y/N]:" n; then
+    ENABLE_VIDEO=true
 
-# mpvpaper is NOT in official repos on most distros
-echo "==> Checking mpvpaper (video wallpaper support)..."
-if ! command -v mpvpaper &>/dev/null; then
-    echo "--> mpvpaper not found."
+    # ffmpeg: straightforward install
+    install_pkg "ffmpeg" "ffmpeg" || true
 
-    if command -v pacman &>/dev/null; then
-        # Arch: mpvpaper is in the AUR
-        if command -v yay &>/dev/null; then
-            yay -S --needed mpvpaper
-        elif command -v paru &>/dev/null; then
-            paru -S --needed mpvpaper
-        else
-            echo "mpvpaper is on the AUR for Arch — install an AUR helper first, then run:"
-            echo "    yay -S mpvpaper      (or: paru -S mpvpaper)"
+    # mpvpaper: not in official repos on most distros
+    echo "==> Checking mpvpaper (video playback)..."
+    if ! command -v mpvpaper &>/dev/null; then
+        echo "--> mpvpaper not found."
+
+        if command -v pacman &>/dev/null; then
+            if command -v yay &>/dev/null; then
+                yay -S --needed mpvpaper
+            elif command -v paru &>/dev/null; then
+                paru -S --needed mpvpaper
+            else
+                echo "mpvpaper is on the AUR for Arch — install an AUR helper first, then run:"
+                echo "    yay -S mpvpaper      (or: paru -S mpvpaper)"
+                echo ""
+                echo "Or install from source: https://github.com/GhostNaN/mpvpaper"
+            fi
+        elif command -v dnf &>/dev/null; then
+            echo "mpvpaper is not packaged for Fedora. Install from source:"
+            echo "    git clone https://github.com/GhostNaN/mpvpaper.git"
+            echo "    cd mpvpaper"
+            echo "    make"
+            echo "    sudo make install"
             echo ""
-            echo "Or install from source: https://github.com/GhostNaN/mpvpaper"
+            echo "Or try: sudo dnf install mpvpaper  # if available in copr"
+        elif command -v apt &>/dev/null; then
+            echo "mpvpaper is not packaged for Debian/Ubuntu. Install from source:"
+            echo "    sudo apt install build-essential git libmpv-dev libwayland-dev"
+            echo "    git clone https://github.com/GhostNaN/mpvpaper.git"
+            echo "    cd mpvpaper"
+            echo "    make"
+            echo "    sudo make install"
+        else
+            echo "Please install mpvpaper manually:"
+            echo "    https://github.com/GhostNaN/mpvpaper"
         fi
-    elif command -v dnf &>/dev/null; then
-        echo "mpvpaper is not packaged for Fedora. Install from source:"
-        echo "    git clone https://github.com/GhostNaN/mpvpaper.git"
-        echo "    cd mpvpaper"
-        echo "    make"
-        echo "    sudo make install"
-        echo ""
-        echo "Or try: sudo dnf install mpvpaper  # if available in copr"
-    elif command -v apt &>/dev/null; then
-        echo "mpvpaper is not packaged for Debian/Ubuntu. Install from source:"
-        echo "    sudo apt install build-essential git libmpv-dev libwayland-dev"
-        echo "    git clone https://github.com/GhostNaN/mpvpaper.git"
-        echo "    cd mpvpaper"
-        echo "    make"
-        echo "    sudo make install"
     else
-        echo "Please install mpvpaper manually:"
-        echo "    https://github.com/GhostNaN/mpvpaper"
+        echo "--> mpvpaper already present."
     fi
 else
-    echo "--> mpvpaper already present."
+    echo "--> Skipping video dependencies."
+    echo "    Static image wallpapers will work fine without them."
+    echo "    To enable videos later, rerun install.sh or install"
+    echo "    ffmpeg and mpvpaper manually."
 fi
 
 # --- Qt5Compat.GraphicalEffects ---
+echo ""
 echo "==> Checking Qt5Compat GraphicalEffects module..."
 if command -v pacman &>/dev/null; then
     sudo pacman -S --needed --noconfirm qt6-5compat || echo "Warning: could not install qt6-5compat automatically."
@@ -134,34 +170,45 @@ if ! command -v quickshell &>/dev/null && ! command -v qs &>/dev/null; then
     fi
 fi
 
-# --- Wallpaper backend ---
-# awww is a sensible default to install for users who don't already have a
-# wallpaper daemon running. Users on a desktop shell that manages wallpapers
-# itself (Noctalia, etc.) can ignore this and set 'custom_command' in
-# config.json instead. Auto-detection at runtime finds whichever daemon the
-# user actually has running.
-echo "==> Checking awww (default wallpaper backend)..."
-if ! command -v awww &>/dev/null; then
-    echo "--> awww not found, installing..."
-    if command -v pacman &>/dev/null; then
-        sudo pacman -S --needed awww || echo "Warning: could not install awww automatically."
-    elif command -v dnf &>/dev/null; then
-        echo "Note: awww has no official Fedora package yet."
-        echo "  'cargo install awww' only installs the client, not awww-daemon —"
-        echo "  you'll need to build both from source, or use hyprpaper/swaybg"
-        echo "  (set 'wallpaper_tool' in config.json, or leave it as \"auto\")."
-    elif command -v apt &>/dev/null; then
-        echo "Note: awww is usually not packaged for Debian/Ubuntu."
-        echo "  Build from source, or use hyprpaper/swaybg instead"
-        echo "  (set 'wallpaper_tool' in config.json, or leave it as \"auto\")."
-    else
-        echo "Please install awww manually, or use hyprpaper/swaybg."
-    fi
-else
+# --- Wallpaper backend (opt-in) ---
+echo ""
+echo "==> Wallpaper backend"
+echo ""
+echo "   awww is a Wayland wallpaper daemon with smooth transitions, and is"
+echo "   the recommended default. You can skip this if:"
+echo "     - you already run hyprpaper / swaybg / another supported daemon,"
+echo "     - or your desktop shell manages wallpapers itself (Noctalia, etc.)"
+echo ""
+echo "   The picker auto-detects whichever daemon is running at runtime."
+echo ""
+if command -v awww &>/dev/null; then
     echo "--> awww already present."
+else
+    if ask_yes_no "Install awww now? [y/N]:" n; then
+        if command -v pacman &>/dev/null; then
+            sudo pacman -S --needed awww || echo "Warning: could not install awww automatically."
+        elif command -v dnf &>/dev/null; then
+            echo "Note: awww has no official Fedora package yet."
+            echo "  'cargo install awww' only installs the client, not awww-daemon —"
+            echo "  you'll need to build both from source, or use hyprpaper/swaybg"
+            echo "  (set 'wallpaper_tool' in config.json, or leave it as \"auto\")."
+        elif command -v apt &>/dev/null; then
+            echo "Note: awww is usually not packaged for Debian/Ubuntu."
+            echo "  Build from source, or use hyprpaper/swaybg instead"
+            echo "  (set 'wallpaper_tool' in config.json, or leave it as \"auto\")."
+        else
+            echo "Please install awww manually, or use hyprpaper/swaybg."
+        fi
+    else
+        echo "--> Skipping awww install."
+        echo "    The picker will auto-detect hyprpaper / swaybg / awww at runtime."
+        echo "    If nothing is running when you launch the picker, it will print"
+        echo "    guidance on how to set a backend or use 'custom_command'."
+    fi
 fi
 
 # --- Initialize Cache Directories & Placeholder Files ---
+echo ""
 echo "==> Initializing local cache directories..."
 mkdir -p ~/.cache/hyprquickpaper
 mkdir -p ~/.cache/quickshell/thumbs
@@ -171,10 +218,6 @@ touch ~/.cache/hyprquickpaper/current_wallpaper
 chmod +x cache.sh commands.sh install.sh
 
 # --- Seed the wallpaper folder with sample images if config points nowhere useful ---
-# Reads wallpaper_path from config.json, expands ~, and only copies sample
-# images when the configured folder is missing or has no images. Users who
-# already pointed config.json at their real wallpaper folder see nothing
-# copied and no messages.
 CONFIG_FILE="$SCRIPT_DIR/config.json"
 if [ -f "$CONFIG_FILE" ] && command -v jq &>/dev/null; then
     WALLPAPER_PATH=$(jq -r '.wallpaper_path // ""' "$CONFIG_FILE")
@@ -218,14 +261,15 @@ if [ -f "$SCRIPT_DIR/config.json" ] && [ -x "$SCRIPT_DIR/cache.sh" ]; then
         echo "Warning: cache.sh did not finish cleanly — thumbnails will still be generated on first picker launch."
 fi
 
-
 echo "==> Setup complete!"
 echo ""
 echo "Before running, make sure you've edited config.json:"
 echo "  - wallpaper_path   -> your real wallpaper folder"
 echo "  - wallpaper_tool   -> auto | awww | hyprpaper | waypaper | swaybg | feh"
 echo "  - custom_command   -> (optional) for shells that manage wallpapers themselves"
-echo "  - video_extensions -> list of video extensions to support"
+if [ "$ENABLE_VIDEO" = true ]; then
+    echo "  - video_extensions -> list of video extensions to support"
+fi
 echo ""
 echo "Wallpaper daemon autostart:"
 echo "  Depending on your Hyprland setup, the autostart line goes in one of:"
@@ -240,10 +284,6 @@ echo ""
 echo "  If your desktop shell already manages wallpapers itself (Noctalia,"
 echo "  end-4 dots, etc.), skip the daemon line and set 'custom_command' in"
 echo "  config.json instead. See README.md for examples."
-echo ""
-echo "For video support, make sure mpvpaper is installed:"
-echo "  - Arch: yay -S mpvpaper (AUR)"
-echo "  - Other distros: build from https://github.com/GhostNaN/mpvpaper"
 echo ""
 echo "Then launch with:"
 echo "  qs -p ~/.config/quickshell/hyprquickpaper"
