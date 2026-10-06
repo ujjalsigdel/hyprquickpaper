@@ -24,9 +24,13 @@ Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hypr
 
 ## 🎬 Demo
 
-https://github.com/user-attachments/assets/5d9b33d8-4af2-49c8-ae8b-fc3031d17e4d
 
-> **Note:** In the demo video, there's a noticeable delay after selecting a video before it gets applied. This was caused by some module issues during recording — on the same config, it's currently snappy. Actual performance may vary depending on your system.
+
+https://github.com/user-attachments/assets/2154315f-e878-446b-8f50-6c8837bcc42d
+
+
+
+> **Note:** Actual performance may vary depending on your system.
 
 ---
 
