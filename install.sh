@@ -4,6 +4,21 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CANONICAL_DIR="$HOME/.config/quickshell/hyprquickpaper"
 
+# --- Strip .git if installed to the canonical location ---
+# The cloned repo's history isn't needed at runtime. If the user cloned
+# somewhere else (a dev checkout), .git is left alone.
+if [ -d "$SCRIPT_DIR/.git" ]; then
+    # If we're inside another git repo, the nested .git causes stale-lock
+    # and submodule-style problems. Strip it either way.
+    parent_repo="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ] || [ -n "$parent_repo" ]; then
+        echo "==> Removing .git (not needed after install)..."
+        rm -rf "$SCRIPT_DIR/.git"
+    else
+        echo "==> Keeping .git (dev checkout outside a parent repo)."
+    fi
+fi
+
 echo "==> Checking and installing dependencies..."
 
 install_pkg() {
@@ -203,20 +218,6 @@ if [ -f "$SCRIPT_DIR/config.json" ] && [ -x "$SCRIPT_DIR/cache.sh" ]; then
         echo "Warning: cache.sh did not finish cleanly — thumbnails will still be generated on first picker launch."
 fi
 
-# --- Strip .git if installed to the canonical location ---
-# The cloned repo's history isn't needed at runtime. If the user cloned
-# somewhere else (a dev checkout), .git is left alone.
-if [ -d "$SCRIPT_DIR/.git" ]; then
-    # If we're inside another git repo, the nested .git causes stale-lock
-    # and submodule-style problems. Strip it either way.
-    parent_repo="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null || true)"
-    if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ] || [ -n "$parent_repo" ]; then
-        echo "==> Removing .git (not needed after install)..."
-        rm -rf "$SCRIPT_DIR/.git"
-    else
-        echo "==> Keeping .git (dev checkout outside a parent repo)."
-    fi
-fi
 
 echo "==> Setup complete!"
 echo ""
