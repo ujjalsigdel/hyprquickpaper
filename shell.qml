@@ -1,41 +1,51 @@
 import Quickshell
+import Quickshell.Io
 import QtQuick
 
-// Top-level Scope allows loading PanelWindow dynamically without rendering white artifacts
 Scope {
     id: root
 
-    // Change this string to switch layouts:
-    // "shell-coverflow.qml" or "shell-classic.qml"
-//-----------------------------------------------------------------------------------------
+    FileView {
+        id: configFile
+        path: Quickshell.shellPath("config.json")
+        watchChanges: true
+        onFileChanged: reload()
 
-    property string activeLayout: "shell-classic.qml"
-
-    // property string activeLayout: "shell-bottom-dock.qml"
-
-    // property string activeLayout: "shell-coverflow.qml"
-    // property string activeLayout: "shell-coverflow-clear.qml"
-    // property string activeLayout: "shell-coverflow-minimal.qml"
-
-    // -------Floating version with blurred background and widgets-------
-    // property string activeLayout: "shell-floating.qml"
-    // property string activeLayout: "shell-floating-center-reflection.qml"
-    // property string activeLayout: "shell-floating-clean.qml"
-
-    // -------Floating version with clear backround image and widgets-------
-    // property string activeLayout: "shell-floating-clear.qml"
-    // property string activeLayout: "shell-floating-clear-clean.qml"
-
-    // -------Floating version with no backround blur and widgets-------
-    // property string activeLayout: "shell-floating-minimal.qml"
-    // property string activeLayout: "shell-floating-minimal-clean.qml"
-
-    // property string activeLayout: "shell-hexcomb.qml"
-
-    // property string activeLayout: "shell-grid-view.qml"
-    
-    Loader {
-        active: true
-        source: Qt.resolvedUrl(root.activeLayout)
+        JsonAdapter {
+            id: configs
+            property string active_layout: "shell-classic.qml"
+        }
     }
+
+    Loader {
+        id: layoutLoader
+        active: false
+        source: ""
+
+        onStatusChanged: {
+            if (status === Loader.Error) {
+                console.log("hyprquickpaper: could not load layout '" +
+                            root.wantedLayout + "', falling back to classic")
+                source = Qt.resolvedUrl("shell-classic.qml")
+            }
+        }
+    }
+
+    readonly property string wantedLayout: {
+        const v = configs.active_layout
+        if (!v || v.length === 0) return "shell-classic.qml"
+        return v
+    }
+
+    Timer {
+        id: bootTimer
+        interval: 60
+        repeat: false
+        onTriggered: {
+            layoutLoader.source = Qt.resolvedUrl(root.wantedLayout)
+            layoutLoader.active = true
+        }
+    }
+
+    Component.onCompleted: bootTimer.start()
 }

@@ -35,7 +35,7 @@ Features a tiered, 3D floating cloud effect with an ultra-smooth background blur
 | Layout | Description | Screenshot |
 |--------|-------------|------------|
 | **Floating** | Blurred background with glassmorphic date/time overlay, reflections on all cards | ![Floating](../assets/screenshots/floating.jpg) |
-| **Floating Center Reflection** | Blurred background with date/time, reflection only on center card | ![Floating Center](../assets/screenshots/floating-center-relfection.jpg) |
+| **Floating Center Reflection** | Blurred background with date/time, reflection only on center card | ![Floating Center](../assets/screenshots/floating-center-reflection.jpg) |
 | **Floating Clean** | Blurred background with date/time, no reflections | ![Floating Clean](../assets/screenshots/floating-clean.jpg) |
 
 #### Floating Clear (without blur, with widgets)
