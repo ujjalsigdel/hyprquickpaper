@@ -14,7 +14,7 @@ ask_yes_no() {
         [ "$default" = "y" ] && return 0 || return 1
     fi
     local reply=""
-    read -r -p "$prompt " reply 2>/dev/null || reply=""
+    read -r -p "$prompt " reply || reply=""
     case "$reply" in
         [Yy]*) return 0 ;;
         [Nn]*) return 1 ;;
