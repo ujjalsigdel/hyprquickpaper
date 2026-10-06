@@ -207,11 +207,14 @@ fi
 # The cloned repo's history isn't needed at runtime. If the user cloned
 # somewhere else (a dev checkout), .git is left alone.
 if [ -d "$SCRIPT_DIR/.git" ]; then
-    if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ]; then
+    # If we're inside another git repo, the nested .git causes stale-lock
+    # and submodule-style problems. Strip it either way.
+    parent_repo="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null || true)"
+    if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ] || [ -n "$parent_repo" ]; then
         echo "==> Removing .git (not needed after install)..."
         rm -rf "$SCRIPT_DIR/.git"
     else
-        echo "==> Keeping .git (installed outside the default location — likely a dev checkout)."
+        echo "==> Keeping .git (dev checkout outside a parent repo)."
     fi
 fi
 
