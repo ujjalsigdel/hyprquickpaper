@@ -5,8 +5,7 @@ A fast, themeable, keyboard-driven Wayland wallpaper picker built with **Quicksh
 Originally based on [iamsurjog/hyprquickpaper](https://github.com/iamsurjog/hyprquickpaper), itself inspired by [ilyamiro's dots](https://github.com/ilyamiro/nixos-configuration). This fork is rebuilt to run on **any** Wayland wallpaper backend.
 
 > [!IMPORTANT]
-> **Before using:** Make sure `wallpaper_tool` in `config.json` matches your installed backend (`awww`, `hyprpaper`, `swaybg`, etc.), and the backend's daemon is running.
-> See the [Configuration Guide](docs/CONFIGURATION.md) for details.
+> **Before using:** Make sure `wallpaper_tool` in `config.json` is set correctly (`"auto"` is the default and works for most setups), and the backend's daemon is running. See the [Configuration Guide](docs/CONFIGURATION.md) for details.
 
 > For GNOME there is a separate GTK4 implementation:
 > [hugo-sants/hyprquickpaper-gnome](https://github.com/hugo-sants/hyprquickpaper-gnome)
@@ -51,11 +50,13 @@ If that's what you need, check out [skwd-wall](https://github.com/liixini/skwd-w
 ## ✨ Features
 
 - **Multiple layout modes** — Bottom Dock, Coverflow, Floating, Grid, Hexacomb, and more.
+- **Interactive layout switcher** — visual panel to preview and switch layouts, with screenshots.
 - **Video wallpapers** — `.mp4`/`.webm`/`.mov`/etc. play via `mpvpaper`, auto-thumbnailed with `ffmpeg`. Supported in **every layout except Hexacomb**.
 - **Lossless background preview** — Renders the full-resolution image behind the dock.
 - **Automatic thumbnail cache** — Smooth scrolling for hundreds of wallpapers.
 - **Live config reload** — `config.json` changes apply immediately.
-- **Backend-agnostic** — Works seamlessly with awww, hyprpaper, waypaper, swaybg, or feh.
+- **Backend-agnostic** — Works with `awww`, `hyprpaper`, `swaybg`, `waypaper`, `feh`, or via `custom_command` for anything else.
+- **Post-apply hooks** — Run matugen, wallust, pywal, or custom commands automatically after each wallpaper change.
 
 ---
 
@@ -76,7 +77,13 @@ If that's what you need, check out [skwd-wall](https://github.com/liixini/skwd-w
 
 *All layouts support video wallpapers except Hexacomb.*
 
-See [Layout Gallery](docs/LAYOUTS.md) to get a proper overview of all the layouts.
+Switch layouts visually with the settings panel:
+
+```bash
+qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
+```
+
+See [Layout Gallery](docs/LAYOUTS.md) for a visual overview of all layouts.
 
 ---
 
@@ -84,10 +91,11 @@ See [Layout Gallery](docs/LAYOUTS.md) to get a proper overview of all the layout
 
 This project relies on two separate components working together:
 
-- **The UI (Quickshell):** The visual picker (`shell.qml`) that handles the card deck, animations, thumbnails, and keyboard navigation.
+- **The UI (Quickshell):** The visual picker (`shell.qml`) that handles the card deck, animations, thumbnails, and keyboard navigation. The active layout is selected via `active_layout` in `config.json`.
 - **The Wallpaper Backend:** The background daemon (`awww`, `hyprpaper`, `swaybg`, etc.) that actually paints the image on your screen.
 
 When you press `Enter`, the UI hands the chosen file to the `wallpaper_tool` defined in your `config.json`.
+
 > ⚠️ **Note:** Your backend daemon must be autostarted by your compositor (e.g., in `hyprland.conf`), not by this project. See [Switching wallpaper backends](docs/CONFIGURATION.md#-switching-wallpaper-backends-the-part-configjson-cant-do).
 
 ---
@@ -106,15 +114,17 @@ Video files (`.mp4`, `.webm`, `.mov`, etc.) work alongside static images in **ev
 
 ## 📋 Dependencies
 
-`install.sh` automatically sets up dependencies. If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, `install.sh` will print manual install pointers when it can't handle something itself — follow those rather than hunting for commands here. Also check out the [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
+`install.sh` installs the required dependencies and asks whether you want the optional ones (video support, `awww`). If your package manager isn't pacman/dnf/apt, or Quickshell isn't packaged for your distro yet, the script prints manual install pointers. Also check out the [Hyprland Wiki](https://wiki.hypr.land/Useful-Utilities/Wallpapers/):
 
+**Always installed:**
 - [Quickshell](https://quickshell.org) (`qs` / `quickshell`) — renders the whole UI
 - `jq` — parses `config.json`
 - `imagemagick` (`convert`) — generates the thumbnail cache
 - **Qt5Compat GraphicalEffects** QML module — powers the rounded-corner card masking; not bundled with base Qt
-- A wallpaper backend of your choice: [awww](https://codeberg.org/LGFae/awww), [hyprpaper](https://wiki.hypr.land/Hypr-Ecosystem/hyprpaper/), [waypaper](https://github.com/anufrievroman/waypaper), [swaybg](https://github.com/swaywm/swaybg), or `feh`
-- `ffmpeg` — generates video thumbnails *(only needed if you have video wallpapers)*
-- [mpvpaper](https://github.com/GhostNaN/mpvpaper) — plays video wallpapers *(only needed if you have video wallpapers; not in official repos on most distros — `install.sh` prints AUR/source-build instructions since it can't always install this one for you)*
+
+**Asked during install:**
+- A wallpaper backend of your choice: [awww](https://codeberg.org/LGFae/awww), [hyprpaper](https://wiki.hypr.land/Hypr-Ecosystem/hyprpaper/), [swaybg](https://github.com/swaywm/swaybg), `waypaper`, or `feh`
+- `ffmpeg` + [mpvpaper](https://github.com/GhostNaN/mpvpaper) — only if you enable video wallpapers
 
 > 💡 **Having issues launching or generating thumbnails?** Check the **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)**.
 
@@ -129,6 +139,10 @@ chmod +x install.sh
 ./install.sh
 ```
 
+The script will ask two questions:
+- **Enable video wallpaper support?** (installs `ffmpeg` + `mpvpaper`) — say `n` if you only use static images.
+- **Install awww?** — say `n` if you already use `hyprpaper`/`swaybg`/another daemon, or your desktop shell manages wallpapers itself.
+
 Then launch with:
 ```bash
 qs -p ~/.config/quickshell/hyprquickpaper
@@ -137,6 +151,7 @@ qs -p ~/.config/quickshell/hyprquickpaper
 Bind it to a Hyprland key so you don't retype that — add to `hyprland.conf` or `Keybindings.lua`:
 ```ini
 bind = SUPER, W, exec, qs -p ~/.config/quickshell/hyprquickpaper
+bind = SUPER SHIFT, W, exec, qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
 ```
 or
 ```lua
@@ -144,6 +159,11 @@ hl.bind(
 	mainMod .. " + CTRL + W",
 	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper"),
 	{ description = "Open HyprQuickPaper Wallpaper Picker" }
+)
+hl.bind(
+	mainMod .. " + SHIFT + W",
+	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper/settings.qml"),
+	{ description = "Open HyprQuickPaper Layout Settings" }
 )
 ```
 
@@ -163,6 +183,7 @@ Edit `config.json` — the **only required change** for most users:
 **Key fields:**
 - `wallpaper_tool` — Which backend to use. `"auto"` (default) detects your running daemon; you can also set `awww`, `hyprpaper`, `swaybg`, etc.
 - `wallpaper_path` — Your wallpaper folder
+- `active_layout` — Which layout to render (e.g. `"layouts/shell-classic.qml"`). Change interactively via the settings panel.
 - `custom_command` — Optional. For desktop shells that manage wallpapers themselves (Noctalia, etc.) — set this to whatever command your shell uses, with `$WALLPAPER` as the path.
 - `post_apply` — Optional array of shell commands to run after every wallpaper change. Ideal for matugen/wallust/pywal theming or reloading your bar.
 - `video_extensions` — Video formats to support
@@ -186,6 +207,14 @@ See [Full Configuration](docs/CONFIGURATION.md) — covers all fields, backend s
 | `Esc` | Close without changing anything |
 | Mouse click | Select a card; click the already-selected card to apply it |
 
+**In the settings panel:**
+
+| Key | Action |
+|---|---|
+| `h`/`j`/`k`/`l` or arrows | Navigate layout cards |
+| `Enter` / `Space` | Apply the focused layout |
+| `Esc` | Close without changing |
+
 ---
 
 ## 🛠️ Troubleshooting
@@ -198,11 +227,11 @@ If you encounter issues like a blank window on launch, missing thumbnails, or vi
 
 ## 🧩 Customization ideas
 
-- Add more wallpaper formats: update the `find` filter in `cache.sh` and the `nameFilters` in whichever `shell-*.qml` you use to include `.webp` (or any other static image format).
+- Add more wallpaper formats: update the `find` filter in `cache.sh` and the `nameFilters` in whichever layout under `layouts/` you use, to include `.webp` (or any other static image format).
 - Port video wallpaper support to Hexacomb — copy `isVideoFile()`, `getThumbnailSource()`, `getVideoPreviewSource()`, the `videoExtensions` property, and the VIDEO badge `Rectangle` from any existing layout.
-- Add a new wallpaper backend: add a `case` branch to `commands.sh`.
-- Full-desktop re-theming on every pick (pywal/wallust-style): `commands.sh` has a commented-out "run your own commands after every wallpaper change" section at the bottom — uncomment and adapt it to regenerate a colorscheme and reload whatever apps you theme (waybar, notifications, browser, etc.). It runs after the wallpaper is set regardless of which `wallpaper_tool` you use.
-- Add more layouts: copy an existing `shell-*.qml`, tweak it, and add the filename as an option in `shell.qml`.
+- Add a new wallpaper backend: add a `case` branch to `commands.sh`, or use `custom_command` in `config.json` for one-off setups.
+- Full-desktop re-theming on every pick: use `post_apply` in `config.json` (see [Post-apply hooks](docs/CONFIGURATION.md#post-apply-hooks)) with matugen, wallust, or pywal.
+- Add more layouts: copy an existing `layouts/shell-*.qml`, tweak it, and add an entry to `settings.qml`'s `layouts` array so it appears in the switcher.
 - Swap the bundled font for your own by replacing the embedded font resource.
 
 ---

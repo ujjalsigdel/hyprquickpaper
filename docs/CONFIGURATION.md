@@ -6,6 +6,7 @@
 {
   "wallpaper_path": "~/Pictures/Wallpapers/",
   "cache_path": "~/.cache/quickshell/thumbs/",
+  "active_layout": "layouts/shell-classic.qml",
   "wallpaper_tool": "auto",
   "custom_command": "",
   "post_apply": [],
@@ -23,6 +24,7 @@
 |---|---|---|
 | `wallpaper_path` | Folder scanned for wallpapers. Supports images plus any extension in `video_extensions`. | Your real wallpaper directory, **with a trailing `/`**, e.g. `"~/Wallpapers/"`. |
 | `cache_path` | Where generated thumbnails live. Auto-created on first run. | Leave default, or point at tmpfs if you have thousands of wallpapers. |
+| `active_layout` | Which layout file the picker loads, relative to the shell root. | A path like `"layouts/shell-classic.qml"`. Change interactively with the settings panel, or edit this field directly. |
 | `wallpaper_tool` | Selects which backend `commands.sh` uses for static images. | `"auto"` (default, detects the running daemon), or one of `awww`, `hyprpaper`, `waypaper`, `swaybg`, `feh`. |
 | `custom_command` | If non-empty, overrides `wallpaper_tool` entirely. Runs with the picked path in `$WALLPAPER`. | Leave `""` for standard setups. Set it if your desktop shell manages wallpapers itself (Noctalia, custom IPC, etc.). See [Custom command](#custom-command) below. |
 | `post_apply` | Optional. Array of shell commands run after every successful wallpaper change. Each runs with `$WALLPAPER` (picked file, may be a video) and `$WALLPAPER_STILL` (always a still image) exported. | Leave `[]` to skip. See [Post-apply hooks](#post-apply-hooks) below for examples. |
@@ -121,7 +123,7 @@ being generated.
 **Hyprpaper config persistence example** — rewrite `hyprpaper.conf` so the
 current wallpaper survives a daemon restart:
 
-```json                                                     
+```json
 "post_apply": [
   "printf 'preload = %s\\nwallpaper {\\n  monitor =\\n  path = %s\\n  fit_mode = cover\\n}\\n' \"$WALLPAPER\" \"$WALLPAPER\" > ~/.config/hypr/hyprpaper.conf"
 ]
@@ -130,12 +132,35 @@ current wallpaper survives a daemon restart:
 (Only do this if hyprpaper is your `wallpaper_tool` and you don't have
 hand-written custom entries in that file you'd rather keep.)
 
-### `shell.qml` — which layout renders
+---
 
-```qml
-property string activeLayout: "shell-classic.qml"
+## Switching layouts
+
+The layout is chosen by `active_layout` in `config.json`. Instead of editing that field by hand, use the settings panel:
+
+```bash
+qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
 ```
-Only one line should be uncommented. Options include `shell-classic.qml`, `shell-bottom-dock.qml`, `shell-coverflow.qml` (and its clear/minimal variants), the `shell-floating-*.qml` family, `shell-grid-view.qml`, and `shell-hexcomb.qml`.
+
+It shows every layout as a card with a screenshot. Navigate with `h`/`j`/`k`/`l` or the arrow keys, press `Enter` (or click) to apply. The change is written to `config.json` immediately and takes effect the next time you open the picker.
+
+Suggested Hyprland keybind:
+
+```ini
+# hyprland.conf
+bind = SUPER SHIFT, W, exec, qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
+```
+
+```lua
+-- Lua-based config
+hl.bind(
+	mainMod .. " + SHIFT + W",
+	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper/settings.qml"),
+	{ description = "Open HyprQuickPaper Layout Settings" }
+)
+```
+
+All layout files live under `layouts/`. `active_layout` values are paths relative to the shell root, e.g. `"layouts/shell-classic.qml"`. Bare filenames like `"shell-classic.qml"` still work — they're automatically prefixed with `layouts/`.
 
 > **Video wallpaper support is available in every layout except Hexacomb.** All other layouts' `FolderListModel.nameFilters` include the configured video extensions, and cards display the cached `.jpg` thumbnail with a **VIDEO** badge.
 
@@ -175,8 +200,9 @@ decoded, then fades in. Card thumbnails decode in parallel and usually
 finish first — but on slow storage or under power-save, card decodes lag
 behind the background, so the reveal fires while cards are still empty.
 
-**Fix:** open the layout file your `shell.qml` points at (`activeLayout`),
-and raise two values. Both are named the same across layouts.
+**Fix:** open the layout file your `config.json`'s `active_layout` points at
+(e.g. `layouts/shell-classic.qml`), and raise two values. Both are named the
+same across layouts.
 
 ### 1. Increase the reveal delay
 
