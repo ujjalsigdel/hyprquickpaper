@@ -144,18 +144,18 @@ qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
 
 It shows every layout as a card with a screenshot. Navigate with `h`/`j`/`k`/`l` or the arrow keys, press `Enter` (or click) to apply. The change is written to `config.json` immediately and takes effect the next time you open the picker.
 
-Suggested Hyprland keybind:
+Suggested Hyprland keybind - with toggle script to prevent multiple instances from opening:
 
 ```ini
 # hyprland.conf
-bind = SUPER SHIFT, W, exec, qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
+bind = SUPER SHIFT, W, exec, ~/.config/quickshell/hyprquickpaper/toggle.sh ~/.config/quickshell/hyprquickpaper/settings.qml
 ```
 
 ```lua
 -- Lua-based config
 hl.bind(
 	mainMod .. " + SHIFT + W",
-	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper/settings.qml"),
+	hl.dsp.exec_cmd("~/.config/quickshell/hyprquickpaper/toggle.sh ~/.config/quickshell/hyprquickpaper/settings.qml"),
 	{ description = "Open HyprQuickPaper Layout Settings" }
 )
 ```

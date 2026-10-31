@@ -154,19 +154,19 @@ qs -p ~/.config/quickshell/hyprquickpaper
 
 Bind it to a Hyprland key so you don't retype that — add to `hyprland.conf` or `Keybindings.lua`:
 ```ini
-bind = SUPER, W, exec, qs -p ~/.config/quickshell/hyprquickpaper
-bind = SUPER SHIFT, W, exec, qs -p ~/.config/quickshell/hyprquickpaper/settings.qml
+bind = SUPER, W, exec, ~/.config/quickshell/hyprquickpaper/toggle.sh ~/.config/quickshell/hyprquickpaper/shell.qml
+bind = SUPER SHIFT, W, exec, ~/.config/quickshell/hyprquickpaper/toggle.sh ~/.config/quickshell/hyprquickpaper/settings.qml
 ```
 or
 ```lua
 hl.bind(
 	mainMod .. " + CTRL + W",
-	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper"),
+	hl.dsp.exec_cmd("~/.config/quickshell/hyprquickpaper/toggle.sh ~/.config/quickshell/hyprquickpaper/shell.qml"),
 	{ description = "Open HyprQuickPaper Wallpaper Picker" }
 )
 hl.bind(
 	mainMod .. " + SHIFT + W",
-	hl.dsp.exec_cmd("qs -p ~/.config/quickshell/hyprquickpaper/settings.qml"),
+	hl.dsp.exec_cmd("~/.config/quickshell/hyprquickpaper/toggle.sh ~/.config/quickshell/hyprquickpaper/settings.qml"),
 	{ description = "Open HyprQuickPaper Layout Settings" }
 )
 ```
