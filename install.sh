@@ -23,19 +23,6 @@ ask_yes_no() {
     esac
 }
 
-# --- Strip .git if installed to the canonical location ---
-# The cloned repo's history isn't needed at runtime. If the user cloned
-# somewhere else (a dev checkout), .git is left alone.
-if [ -d "$SCRIPT_DIR/.git" ]; then
-    parent_repo="$(git -C "$SCRIPT_DIR/.." rev-parse --show-toplevel 2>/dev/null || true)"
-    if [ "$SCRIPT_DIR" = "$CANONICAL_DIR" ] || [ -n "$parent_repo" ]; then
-        echo "==> Removing .git (not needed after install)..."
-        rm -rf "$SCRIPT_DIR/.git"
-    else
-        echo "==> Keeping .git (dev checkout outside a parent repo)."
-    fi
-fi
-
 echo "==> Checking and installing dependencies..."
 
 install_pkg() {
