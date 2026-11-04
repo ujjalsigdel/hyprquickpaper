@@ -71,6 +71,9 @@ Examples:
 // Noctalia v4
 "custom_command": "noctalia-shell ipc call wallpaper set \"$WALLPAPER\""
 
+// end-4 (illogical-impulse) dots
+"custom_command": "~/.config/quickshell/ii/scripts/colors/switchwall.sh \"$WALLPAPER\""
+
 // Any shell that exposes a wallpaper IPC
 "custom_command": "your-shell ipc wallpaper set \"$WALLPAPER\""
 ```
