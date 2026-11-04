@@ -66,16 +66,16 @@ Examples:
 
 ```json
 // Noctalia v5+
-"custom_command": "noctalia msg wallpaper-set \"$WALLPAPER\""
+"custom_command": "noctalia msg wallpaper-set \"$WALLPAPER\"",
 
 // Noctalia v4
-"custom_command": "noctalia-shell ipc call wallpaper set \"$WALLPAPER\""
+"custom_command": "noctalia-shell ipc call wallpaper set \"$WALLPAPER\"",
 
 // end-4 (illogical-impulse) dots
-"custom_command": "~/.config/quickshell/ii/scripts/colors/switchwall.sh \"$WALLPAPER\""
+"custom_command": "~/.config/quickshell/ii/scripts/colors/switchwall.sh \"$WALLPAPER\"",
 
 // Any shell that exposes a wallpaper IPC
-"custom_command": "your-shell ipc wallpaper set \"$WALLPAPER\""
+"custom_command": "your-shell ipc wallpaper set \"$WALLPAPER\"",
 ```
 
 `custom_command` takes priority over `wallpaper_tool` — if it's non-empty, the daemon detection and case dispatch are skipped entirely. Leave it empty to use the normal backend path.
